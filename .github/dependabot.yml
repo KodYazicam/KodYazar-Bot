@@ -1,25 +1,18 @@
 # Dependency updates for the repository itself.
 #
-# The npm ecosystem is intentionally commented out until #1 adds package.json:
-# Dependabot fails every scheduled run with "dependency_file_not_found" when the
-# manifest is missing. Re-enable this block in the pull request that introduces
-# package.json and package-lock.json.
+# Both ecosystems have their manifests: package.json/package-lock.json for npm
+# and the workflows in .github/workflows for GitHub Actions.
 version: 2
 updates:
-  # - package-ecosystem: npm
-  #   directory: "/"
-  #   schedule:
-  #     interval: weekly
-  #     day: monday
-  #   open-pull-requests-limit: 5
-  #   groups:
-  #     dev-dependencies:
-  #       dependency-type: development
-  #     production-dependencies:
-  #       dependency-type: production
-  #   commit-message:
-  #     prefix: "deps"
-  #     prefix-development: "deps-dev"
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

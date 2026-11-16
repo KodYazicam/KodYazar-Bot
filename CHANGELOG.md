@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- TypeScript runtime spine (#8): `package.json`/`tsconfig.json`, validated env
+  config, a `GET /healthz` server, graceful shutdown, a `node --test` suite, and
+  a `CI` workflow (Node 22) that runs `npm ci`, typecheck, and tests.
+- `.env.example`, a `data/` ignore rule, and npm Dependabot updates now that
+  `package.json` and `package-lock.json` exist.
 - Repository governance: `CONTRIBUTING.md`, `SECURITY.md`,
   `CODE_OF_CONDUCT.md`, `ROADMAP.md`, this changelog, issue and pull request
   templates, `CODEOWNERS`, and Dependabot configuration.

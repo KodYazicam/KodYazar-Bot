@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import type { AddressInfo } from 'node:net';
+import { test } from 'node:test';
+import { createHealthServer } from '../src/health.js';
+
+async function withServer(run: (baseUrl: string) => Promise<void>): Promise<void> {
+  const server = createHealthServer({ version: '0.1.0', startedAt: 0, now: () => 4000 });
+  server.listen(0);
+  await once(server, 'listening');
+  const { port } = server.address() as AddressInfo;
+  try {
+    await run(`http://127.0.0.1:${port}`);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
+test('serves the public liveness payload on GET /healthz', async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/healthz`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: 'ok', uptime: 4, version: '0.1.0' });
+  });
+});
+
+test('unknown paths return 404 and unsupported methods 405', async () => {
+  await withServer(async (baseUrl) => {
+    assert.equal((await fetch(`${baseUrl}/nope`)).status, 404);
+    assert.equal((await fetch(`${baseUrl}/healthz`, { method: 'POST' })).status, 405);
+  });
+});
