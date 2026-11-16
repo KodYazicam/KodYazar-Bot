@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report
+    url: https://github.com/KodYazicam/KodYazar-Bot/security/policy
+    about: Report a vulnerability privately. Do not open a public issue.
+  - name: Roadmap and scope
+    url: https://github.com/KodYazicam/KodYazar-Bot/blob/main/ROADMAP.md
+    about: Check what is planned, in progress, and explicitly out of scope.
