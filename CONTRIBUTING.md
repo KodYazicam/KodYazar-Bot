@@ -3,8 +3,9 @@
 KodYazar-Bot is an all-in-one, local-first Discord server bot: announcements,
 backups, auto/reaction roles, temp voice, moderation, staff tracking, and
 logging. The runnable scaffold is tracked in
-[#1](https://github.com/KodYazicam/KodYazar-Bot/issues/1), so until it lands there
-is no `package.json` or test command and documentation PRs are the useful work.
+[#1](https://github.com/KodYazicam/KodYazar-Bot/issues/1) and delivered in
+slices, starting with the runtime spine in
+[#8](https://github.com/KodYazicam/KodYazar-Bot/issues/8).
 
 ## Before you start
 
@@ -16,18 +17,11 @@ is no `package.json` or test command and documentation PRs are the useful work.
 
 ## Setup
 
-Until the scaffold from #1 lands there is no `package.json` and no `npm test`
-command. The only automated check is the `repo-hygiene` workflow, which runs
-`node --test "tests/**/*.test.mjs"` on every push and pull request to `main` and
-asserts that every active Dependabot ecosystem has its manifest. Run the same
-command locally with Node 22 or newer; a documentation change needs no install
-step.
-
-Once #1 is merged, run `npm ci` and `npm test`. Add `package.json` and the npm CI
-pipeline only in a pull request that is about the scaffold.
-
-Dependabot's `npm` ecosystem stays commented out in `.github/dependabot.yml`
-until `package.json` exists; the `github-actions` ecosystem is active.
+Run `npm ci`, `npm run typecheck`, and `npm test` locally with Node 22 or newer;
+`npm test` builds with `tsc` and runs `node --test`. The `CI` workflow runs the
+same commands on every push and pull request to `main`, and the `repo-hygiene`
+workflow asserts that every active Dependabot ecosystem has its manifest. Both
+the `npm` and `github-actions` ecosystems are active because both manifests exist.
 
 ## Branches and commits
 
