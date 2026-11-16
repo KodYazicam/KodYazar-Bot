@@ -16,9 +16,18 @@ is no `package.json` or test command and documentation PRs are the useful work.
 
 ## Setup
 
-Once the scaffold from #1 is merged, run `npm ci` and `npm test`. A
-documentation change needs no install step; do not add `package.json` or CI in an
-unrelated pull request.
+Until the scaffold from #1 lands there is no `package.json` and no `npm test`
+command. The only automated check is the `repo-hygiene` workflow, which runs
+`node --test "tests/**/*.test.mjs"` on every push and pull request to `main` and
+asserts that every active Dependabot ecosystem has its manifest. Run the same
+command locally with Node 22 or newer; a documentation change needs no install
+step.
+
+Once #1 is merged, run `npm ci` and `npm test`. Add `package.json` and the npm CI
+pipeline only in a pull request that is about the scaffold.
+
+Dependabot's `npm` ecosystem stays commented out in `.github/dependabot.yml`
+until `package.json` exists; the `github-actions` ecosystem is active.
 
 ## Branches and commits
 
@@ -32,7 +41,8 @@ unrelated pull request.
 ## Pull requests
 
 - Explain the problem, the change, how you tested it, and the risk and rollback.
-- Add or update tests when behaviour changes (after the test runner exists).
+- Add or update tests when behaviour changes. `node --test "tests/**/*.test.mjs"`
+  works today; #1 adds the full npm test runner.
 - Update `README.md` and `CHANGELOG.md` for user-visible changes.
 - A maintainer reviews every pull request. Do not force-push after review starts.
 
