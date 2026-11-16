@@ -8,6 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Discord connection (#12): a dependency-free gateway adapter behind `src/client.ts`
+  (IDENTIFY, heartbeat ACK tracking, capped reconnect), commands, and `/ping`.
 - TypeScript runtime spine (#8): `package.json`/`tsconfig.json`, validated env
   config, a `GET /healthz` server, graceful shutdown, a `node --test` suite, and
   a `CI` workflow (Node 22) that runs `npm ci`, typecheck, and tests.
