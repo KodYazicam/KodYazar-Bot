@@ -25,3 +25,50 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate the compose file
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+      - name: Build the runtime image
+        run: docker build --tag kodyazar-bot:ci .
+      - name: Assert the image and runtime user are not root
+        run: |
+          test "$(docker image inspect --format '{{.Config.User}}' kodyazar-bot:ci)" = "bot"
+          test "$(docker run --rm --entrypoint id kodyazar-bot:ci -u)" != "0"
+      - name: Start the health server in the hardened runtime
+        run: |
+          # The real entrypoint needs a Discord token; start the same image's
+          # health server so this job stays offline and deterministic. The image
+          # HEALTHCHECK below still exercises the shipped /healthz contract.
+          docker run --detach --name kodyazar-ci \
+            --read-only --tmpfs /tmp \
+            --publish 3000:3000 \
+            --entrypoint node \
+            kodyazar-bot:ci \
+            --input-type=module \
+            -e "import('file:///app/dist/src/health.js').then(({ createHealthServer }) => createHealthServer({ version: 'ci' }).listen(3000));"
+      - name: Wait for /healthz and the image health check
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/healthz > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --show-error http://127.0.0.1:3000/healthz
+          for attempt in $(seq 1 30); do
+            if [ "$(docker inspect --format '{{.State.Health.Status}}' kodyazar-ci)" = "healthy" ]; then
+              break
+            fi
+            sleep 2
+          done
+          test "$(docker inspect --format '{{.State.Health.Status}}' kodyazar-ci)" = "healthy"
+      - name: Remove the container
+        if: always()
+        run: docker rm --force kodyazar-ci
