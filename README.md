@@ -4,8 +4,9 @@ All-in-one Discord server bot: announcements, backups, auto/reaction roles, temp
 
 > **Status:** pre-release. The runnable scaffold is tracked in
 > [#1](https://github.com/KodYazicam/KodYazar-Bot/issues/1); the runtime spine
-> is [#8](https://github.com/KodYazicam/KodYazar-Bot/issues/8) and the Discord
-> connection plus `/ping` is [#12](https://github.com/KodYazicam/KodYazar-Bot/issues/12).
+> is [#8](https://github.com/KodYazicam/KodYazar-Bot/issues/8), the Discord
+> connection plus `/ping` is [#12](https://github.com/KodYazicam/KodYazar-Bot/issues/12),
+> and the redacting logger is [#16](https://github.com/KodYazicam/KodYazar-Bot/issues/16).
 
 ## Quick start
 
@@ -45,6 +46,24 @@ docker compose down        # add --volumes to delete the persisted data
 `.env` never enters the image (`.dockerignore` excludes it); pass secrets with
 `--env-file` or your orchestrator's secret store. CI builds the image, proves it
 runs as `bot`, and waits for the container health check to report `healthy`.
+
+## Logging
+
+Logs are one JSON object per line on stdout, filtered by `LOG_LEVEL`
+(`debug` | `info` | `warn` | `error`, default `info`):
+
+```json
+{"ts":"2026-11-17T00:00:00.000Z","level":"info","msg":"kodyazar-bot ready","token":"<redacted>","version":"0.1.0"}
+```
+
+`src/logger.ts` is a single redacting sink for the process. Keys that name a
+credential (`token`, `secret`, `password`, `authorization`, `api_key`, `cookie`,
+`session`, …) are replaced with `<redacted>` at any depth, and the bot token is
+registered as a secret value so it is replaced even when it arrives inside an
+error message or free text. Errors serialise to `{name, message, stack}` through
+the same filter. Logging is best-effort: circular references become
+`[Circular]`, deep nesting becomes `[Truncated]`, and the logger never throws on
+the boot path.
 
 ## Contributing and security
 
