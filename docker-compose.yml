@@ -1,0 +1,23 @@
+name: kodyazar-bot
+
+services:
+  bot:
+    build: .
+    image: kodyazar-bot:local
+    env_file:
+      - .env
+    environment:
+      DATA_DIR: /app/data
+    ports:
+      - "3000:3000"
+    volumes:
+      - bot-data:/app/data
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  bot-data:
