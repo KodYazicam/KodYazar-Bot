@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Self-hosting assets (#14): a multi-stage, non-root Docker image with `tini`
+  and a `/healthz` health check, `.dockerignore`, a compose stack with a named
+  data volume and a read-only root filesystem, a `docker` CI job that builds and
+  smoke-tests the image, and `tests/docker-assets.test.mjs` to keep those
+  invariants from regressing.
 - TypeScript runtime spine (#8): `package.json`/`tsconfig.json`, validated env
   config, a `GET /healthz` server, graceful shutdown, a `node --test` suite, and
   a `CI` workflow (Node 22) that runs `npm ci`, typecheck, and tests.

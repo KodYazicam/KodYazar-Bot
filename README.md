@@ -16,6 +16,33 @@ and `CLIENT_ID`, then `npm run build && npm start`. `GET /healthz` returns
 suite without a token or network. The token is never printed: the startup summary
 masks it and validation errors name the variable only.
 
+## Run with Docker
+
+The image is multi-stage and runs as the unprivileged `bot` user; `tini` is PID 1
+so SIGTERM reaches the bot, and the image health check calls `/healthz`.
+
+```bash
+cp .env.example .env    # fill TOKEN and CLIENT_ID
+docker build -t kodyazar-bot .
+docker run --rm --publish 3000:3000 --env-file .env kodyazar-bot
+curl --fail http://127.0.0.1:3000/healthz
+```
+
+Or use the compose stack, which keeps `/app/data` in the `bot-data` named volume
+and mounts the root filesystem read-only:
+
+```bash
+cp .env.example .env
+docker compose up --build --detach
+docker compose ps          # the bot service should report healthy
+docker compose logs --follow bot
+docker compose down        # add --volumes to delete the persisted data
+```
+
+`.env` never enters the image (`.dockerignore` excludes it); pass secrets with
+`--env-file` or your orchestrator's secret store. CI builds the image, proves it
+runs as `bot`, and waits for the container health check to report `healthy`.
+
 ## Contributing and security
 
 - Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
