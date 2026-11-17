@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Redacting JSON logger (#16): `src/logger.ts` is now the single JSON-lines sink
+  for the process, with level filtering, child context, recursive redaction of
+  credential-shaped keys, and registered secret values (the bot token) replaced
+  in messages, context strings, and `Error` output. `src/index.ts` routes every
+  line through it.
 - Discord connection (#12): a dependency-free gateway adapter behind `src/client.ts`
   (IDENTIFY, heartbeat ACK tracking, capped reconnect), commands, and `/ping`.
 - TypeScript runtime spine (#8): `package.json`/`tsconfig.json`, validated env
