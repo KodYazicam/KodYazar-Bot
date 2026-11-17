@@ -1,3 +1,5 @@
+import { DiscordClient } from './client.js';
+import { ping } from './commands/ping.js';
 import { type Config, ConfigError, parseConfig, summariseConfig } from './config.js';
 import { createHealthServer } from './health.js';
 
@@ -21,8 +23,27 @@ function main(): void {
   }
 
   const server = createHealthServer({ version: VERSION });
+  const client = new DiscordClient({
+    token: config.token, clientId: config.clientId, guildId: config.guildId, commands: [ping],
+    log: (level, message, context) => log(config, level, message, context),
+  });
+
+  const startDiscord = async (): Promise<void> => {
+    try {
+      await client.register();
+      await client.start();
+      log(config, 'info', 'discord gateway connected');
+    } catch (error) {
+      log(config, 'error', 'discord gateway failed to start', { error: error instanceof Error ? error.message : 'unknown' });
+      client.stop();
+      server.close();
+      process.exitCode = 1;
+    }
+  };
+
   const shutdown = (signal: NodeJS.Signals): void => {
     log(config, 'info', 'shutting down', { signal });
+    client.stop();
     server.close(() => {
       log(config, 'info', 'shutdown complete');
       process.exit(0);
@@ -32,13 +53,13 @@ function main(): void {
       process.exit(1);
     }, SHUTDOWN_GRACE_MS).unref();
   };
-  process.once('SIGTERM', () => shutdown('SIGTERM'));
-  process.once('SIGINT', () => shutdown('SIGINT'));
+  for (const signal of ['SIGTERM', 'SIGINT'] as const) process.once(signal, () => shutdown(signal));
 
   server.listen(config.port, () => {
     const address = server.address();
     const port = typeof address === 'object' && address !== null ? address.port : config.port;
     log(config, 'info', 'kodyazar-bot ready', { ...summariseConfig(config), port, version: VERSION });
+    void startDiscord();
   });
 }
 main();
