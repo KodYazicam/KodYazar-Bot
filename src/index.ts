@@ -1,6 +1,8 @@
+import { join } from 'node:path';
 import { DiscordClient } from './client.js';
 import { ping } from './commands/ping.js';
 import { type Config, ConfigError, parseConfig, summariseConfig } from './config.js';
+import { type GuildSettingsStore, openDatabase, openGuildSettingsStore, SCHEMA_VERSION } from './db.js';
 import { createHealthServer } from './health.js';
 import { createLogger } from './logger.js';
 
@@ -26,6 +28,21 @@ function main(): void {
     secrets: [config.token],
   });
 
+  // Persistent state lives under DATA_DIR; a boot failure here is fatal so the
+  // supervisor restarts us instead of silently running without settings.
+  let store: GuildSettingsStore;
+  try {
+    store = openGuildSettingsStore(openDatabase(join(config.dataDir, 'kodyazar.sqlite')));
+  } catch (error) {
+    logger.log('error', 'storage failed to open', {
+      error: error instanceof Error ? error.message : 'unknown',
+      data_dir: config.dataDir,
+    });
+    process.exitCode = 1;
+    return;
+  }
+  logger.log('info', 'storage ready', { schema_version: SCHEMA_VERSION });
+
   const server = createHealthServer({ version: VERSION });
   const client = new DiscordClient({
     token: config.token, clientId: config.clientId, guildId: config.guildId, commands: [ping],
@@ -41,6 +58,7 @@ function main(): void {
       logger.log('error', 'discord gateway failed to start', { error: error instanceof Error ? error.message : 'unknown' });
       client.stop();
       server.close();
+      store.close();
       process.exitCode = 1;
     }
   };
@@ -49,6 +67,7 @@ function main(): void {
     logger.log('info', 'shutting down', { signal });
     client.stop();
     server.close(() => {
+      store.close();
       logger.log('info', 'shutdown complete');
       process.exit(0);
     });
