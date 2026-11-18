@@ -113,7 +113,8 @@ test("the runbook's code-level claims match the source", () => {
   assert.match(config, /\?\s*3000\b/, "src/config.ts no longer defaults PORT to 3000");
 
   assert.match(text, /GUILDS/, "must document the GUILDS intent");
-  assert.ok(read("src/client.ts").includes("GUILDS_INTENT"), "src/client.ts no longer identifies with GUILDS");
+  assert.ok(index.includes("GatewayIntentBits.Guilds"), "src/index.ts no longer requests the Guilds intent");
+  assert.ok(index.includes("createSparkBot"), "src/index.ts no longer dispatches through sparkcord");
 });
 
 test("the runbook states that /healthz is not gateway readiness", () => {

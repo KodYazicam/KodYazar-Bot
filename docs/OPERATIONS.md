@@ -5,15 +5,15 @@ covers the runtime that exists today: config validation, JSON logs, `GET
 /healthz`, one slash command (`/ping`), and the Docker image. The code lives in
 `src/index.ts` (boot and lifecycle), `src/health.ts` (probe), `src/config.ts`
 (environment validation), `src/db.ts` (SQLite storage and migrations), and
-`src/client.ts` (gateway adapter).
+`src/commands/` (the slash catalogue `sparkcord` loads at boot).
 
 For local development and the project overview, read [README.md](../README.md)
 first. This page is about running the bot for other people.
 
 ## Prerequisites
 
-- **Node.js 22.13 or newer.** The gateway adapter uses the built-in `WebSocket`
-  and storage uses the built-in `node:sqlite` module, which 22.13 made available
+- **Node.js 22.13 or newer.** `discord.js` uses the built-in `WebSocket` and
+  storage uses the built-in `node:sqlite` module, which 22.13 made available
   without a flag; older runtimes fail at import or with `WebSocket is unavailable`.
 - **A Discord application with a bot user.** Copy the bot token and the
   application (client) ID from the Developer Portal.
@@ -67,9 +67,9 @@ Startup order:
 2. the health server listens on `PORT`;
 3. the log line `kodyazar-bot ready` is written with the config summary (token
    masked);
-4. the command catalogue is PUT to Discord (guild-scoped when `GUILD_ID` is
-   set, otherwise global);
-5. the gateway connects and logs `discord gateway connected`.
+4. the gateway connects and logs `discord gateway connected`;
+5. `sparkcord` registers the loaded catalogue (guild-scoped when `GUILD_ID` is
+   set, otherwise global) as soon as the client is ready.
 
 Global commands can take up to an hour to appear. Set `GUILD_ID` during rollout
 to make `/ping` available immediately in one guild.
