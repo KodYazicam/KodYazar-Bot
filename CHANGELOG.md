@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- SQLite storage spine (#18): `src/db.ts` opens `DATA_DIR/kodyazar.sqlite`,
+  applies forward-only migrations recorded in `schema_migrations` (v1 adds
+  `guild_settings`), runs in WAL mode with a 5s busy timeout, and exposes a
+  per-guild settings store with bound parameters and validated guild ids, keys,
+  and values. `src/index.ts` opens it after config validation, logs only the
+  schema version, and closes it on shutdown or gateway failure. `engines.node`
+  is now `>=22.13` for unflagged `node:sqlite`.
 - Self-hosting assets (#14): a multi-stage, non-root Docker image with `tini`
   and a `/healthz` health check, `.dockerignore`, a compose stack with a named
   data volume and a read-only root filesystem, a `docker` CI job that builds and
