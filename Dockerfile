@@ -3,6 +3,8 @@
 # Build stage: install dev dependencies, compile TypeScript, then drop devDependencies.
 FROM node:22-alpine AS build
 WORKDIR /app
+# sparkcord is a git dependency: npm needs git to clone it and run its prepare build.
+RUN apk add --no-cache git
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.json ./

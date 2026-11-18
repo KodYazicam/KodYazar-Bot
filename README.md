@@ -11,7 +11,8 @@ All-in-one Discord server bot: announcements, backups, auto/reaction roles, temp
 ## Quick start
 
 Requires Node.js 22.13 or newer (the bot uses the built-in `node:sqlite`
-module). Run `npm ci`, copy `.env.example` to `.env`, fill `TOKEN`
+module) and `git` (the pinned `sparkcord` dependency is installed from a
+commit). Run `npm ci`, copy `.env.example` to `.env`, fill `TOKEN`
 and `CLIENT_ID`, then `npm run build && npm start`. On startup the bot registers
 `/ping`, opens the gateway with the `GUILDS` intent only (no privileged intents),
 and replies with heartbeat latency and process uptime; set `GUILD_ID` while
