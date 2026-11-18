@@ -15,6 +15,11 @@ All notable changes to this project are documented here. The format follows
   and values. `src/index.ts` opens it after config validation, logs only the
   schema version, and closes it on shutdown or gateway failure. `engines.node`
   is now `>=22.13` for unflagged `node:sqlite`.
+- Operator runbook (#22): `docs/OPERATIONS.md` covers configuration, source and
+  Docker deploys, `/healthz` liveness semantics, log redaction, shutdown,
+  upgrade/rollback, token rotation, and troubleshooting, plus
+  `tests/operations-docs.test.mjs` to fail CI when the runbook references a
+  removed script, environment variable, or repository path.
 - Self-hosting assets (#14): a multi-stage, non-root Docker image with `tini`
   and a `/healthz` health check, `.dockerignore`, a compose stack with a named
   data volume and a read-only root filesystem, a `docker` CI job that builds and

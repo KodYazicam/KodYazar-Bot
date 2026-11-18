@@ -90,6 +90,12 @@ the same filter. Logging is best-effort: circular references become
 `[Circular]`, deep nesting becomes `[Truncated]`, and the logger never throws on
 the boot path.
 
+## Operations
+
+For self-hosting, see the [operator runbook](./docs/OPERATIONS.md): configuration
+reference, source and Docker deploys, health semantics, log redaction, graceful
+shutdown, upgrade/rollback, token rotation, and a troubleshooting table.
+
 ## Contributing and security
 
 - Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request.
