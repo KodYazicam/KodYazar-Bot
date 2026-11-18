@@ -10,11 +10,14 @@ All-in-one Discord server bot: announcements, backups, auto/reaction roles, temp
 
 ## Quick start
 
-Requires Node.js 22. Run `npm ci`, copy `.env.example` to `.env`, fill `TOKEN`
+Requires Node.js 22.13 or newer (the bot uses the built-in `node:sqlite`
+module). Run `npm ci`, copy `.env.example` to `.env`, fill `TOKEN`
 and `CLIENT_ID`, then `npm run build && npm start`. On startup the bot registers
 `/ping`, opens the gateway with the `GUILDS` intent only (no privileged intents),
 and replies with heartbeat latency and process uptime; set `GUILD_ID` while
-developing so the command appears immediately. `/healthz` returns
+developing so the command appears immediately. The health server listens on
+`PORT` (default 3000 when unset or empty; `0` picks an ephemeral port) and
+`/healthz` returns
 `{"status":"ok","uptime":<seconds>,"version":"<version>"}`; other paths return
 404 and unsupported methods 405. `npm test` builds and runs the `node --test`
 suite without a token or network. The token is never printed: the startup summary
@@ -47,6 +50,28 @@ docker compose down        # add --volumes to delete the persisted data
 `--env-file` or your orchestrator's secret store. CI builds the image, proves it
 runs as `bot`, and waits for the container health check to report `healthy`.
 
+## Storage
+
+Persistent state lives in one SQLite database at `DATA_DIR/kodyazar.sqlite`
+(`DATA_DIR` defaults to `./data`). It is created on first boot and migrated
+forward-only; the schema version is logged once as `schema_version` in the
+`storage ready` line. The Docker image and compose stack already keep
+`/app/data` on the `bot-data` volume.
+
+SQLite runs in WAL mode, so while the bot is running you will also see
+`kodyazar.sqlite-wal` and `kodyazar.sqlite-shm` next to the database; treat all
+three files as one unit. Do not copy a live database with `cp`: take a
+consistent snapshot with the SQLite backup API (or
+`VACUUM INTO '<backup-file>'`). Never store Discord tokens in this database —
+bot tokens belong in the environment.
+
+`src/db.ts` exposes `openDatabase()` (open + migrate) and
+`openGuildSettingsStore()` (per-guild key/value settings with bound
+parameters). New tables arrive as numbered migrations in that file; a failed
+migration rolls back instead of leaving a half-applied schema. Backing up,
+restoring, and exporting settings are tracked as follow-up work in
+[ROADMAP.md](./ROADMAP.md).
+
 ## Logging
 
 Logs are one JSON object per line on stdout, filtered by `LOG_LEVEL`
@@ -65,6 +90,11 @@ the same filter. Logging is best-effort: circular references become
 `[Circular]`, deep nesting becomes `[Truncated]`, and the logger never throws on
 the boot path.
 
+## Operations
+
+For self-hosting, see the [operator runbook](./docs/OPERATIONS.md): configuration
+reference, source and Docker deploys, health semantics, log redaction, graceful
+shutdown, upgrade/rollback, token rotation, and a troubleshooting table.
 ## Gateway close codes
 
 Transient closes (`1006`, `4003`, `4008`, heartbeat ACK timeouts) are retried with

@@ -34,8 +34,11 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (!LOG_LEVELS.includes(logLevel as LogLevel)) {
     throw new ConfigError(`LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')}`);
   }
-  const port = Number((env.PORT ?? '3000').trim());
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+  const rawPort = (env.PORT ?? '').trim();
+  // An empty value means "use the default", not the documented ephemeral 0.
+  // Only decimal digits are accepted so `0x10`/`1e3` cannot bind a surprise port.
+  const port = rawPort === '' ? 3000 : Number(rawPort);
+  if ((rawPort !== '' && !/^\d+$/.test(rawPort)) || !Number.isInteger(port) || port < 0 || port > 65535) {
     throw new ConfigError('PORT must be an integer between 0 and 65535');
   }
   const dataDir = (env.DATA_DIR ?? './data').trim() || './data';
