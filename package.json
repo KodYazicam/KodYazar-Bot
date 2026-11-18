@@ -18,5 +18,9 @@
   "devDependencies": {
     "@types/node": "^26.6.6",
     "typescript": "~7.0.2"
+  },
+  "dependencies": {
+    "discord.js": "^14.28.1",
+    "sparkcord": "github:KodYazicam/sparkcord#95601d108b548549e052fdafe22d6a8da0c6cd2b"
   }
 }
