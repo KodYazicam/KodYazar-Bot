@@ -36,6 +36,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Gateway close codes are classified (#24): `4004` and `4010`–`4014` are terminal,
+  so the client stops its timers, rejects a pending `start()`, closes the
+  `/healthz` server, and exits non-zero instead of reconnecting forever. Transient
+  codes (`1006`, `4003`, `4008`) keep the existing capped backoff.
 - Scheduled Dependabot runs no longer fail on `main` with
   `dependency_file_not_found`: the `github-actions` ecosystem now has a workflow
   file, and the `npm` ecosystem is commented out until #1 adds `package.json`.
