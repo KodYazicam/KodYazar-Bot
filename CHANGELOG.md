@@ -36,6 +36,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Configuration: `PORT` is parsed as a decimal integer. An empty value now
+  falls back to the documented default 3000 instead of silently selecting an
+  ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected
+  before they can bind a port the Docker healthcheck does not probe (#20).
 - Scheduled Dependabot runs no longer fail on `main` with
   `dependency_file_not_found`: the `github-actions` ecosystem now has a workflow
   file, and the `npm` ecosystem is commented out until #1 adds `package.json`.
