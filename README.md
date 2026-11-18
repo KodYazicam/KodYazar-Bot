@@ -95,6 +95,17 @@ the boot path.
 For self-hosting, see the [operator runbook](./docs/OPERATIONS.md): configuration
 reference, source and Docker deploys, health semantics, log redaction, graceful
 shutdown, upgrade/rollback, token rotation, and a troubleshooting table.
+## Gateway close codes
+
+Transient closes (`1006`, `4003`, `4008`, heartbeat ACK timeouts) are retried with
+exponential backoff capped at 30 seconds. Discord's terminal close codes — `4004`
+(authentication failed), `4010` (invalid shard), `4011` (sharding required),
+`4012` (invalid API version), `4013` (invalid intent(s)) and `4014` (disallowed
+intent(s)) — are not retried: the client logs one `gateway closed permanently`
+line, stops the `/healthz` server, and exits non-zero so the supervisor restarts
+or alerts instead of the container reporting healthy while the bot is offline.
+When that happens, check `TOKEN`, the bot intents enabled for the application,
+and that the gateway API version is still supported.
 
 ## Contributing and security
 

@@ -4,17 +4,17 @@ How to deploy, observe, upgrade, and recover **KodYazar-Bot** on `main`. This
 covers the runtime that exists today: config validation, JSON logs, `GET
 /healthz`, one slash command (`/ping`), and the Docker image. The code lives in
 `src/index.ts` (boot and lifecycle), `src/health.ts` (probe), `src/config.ts`
-(environment validation), and `src/client.ts` (gateway adapter). The SQLite
-storage slice is still in review ([#18](https://github.com/KodYazicam/KodYazar-Bot/issues/18));
-sections that will change when it lands are marked **Future**.
+(environment validation), `src/db.ts` (SQLite storage and migrations), and
+`src/client.ts` (gateway adapter).
 
 For local development and the project overview, read [README.md](../README.md)
 first. This page is about running the bot for other people.
 
 ## Prerequisites
 
-- **Node.js 22 or newer.** The gateway adapter uses the built-in `WebSocket`;
-  older runtimes fail fast with `WebSocket is unavailable`.
+- **Node.js 22.13 or newer.** The gateway adapter uses the built-in `WebSocket`
+  and storage uses the built-in `node:sqlite` module, which 22.13 made available
+  without a flag; older runtimes fail at import or with `WebSocket is unavailable`.
 - **A Discord application with a bot user.** Copy the bot token and the
   application (client) ID from the Developer Portal.
 - **Only the `GUILDS` gateway intent.** The bot registers slash commands and
@@ -39,7 +39,7 @@ All runtime configuration comes from environment variables. Start from
 | `GUILD_ID` | unset | Optional guild snowflake for instant command registration while developing. Unset means global commands. |
 | `LOG_LEVEL` | `info` | One of `debug`, `info`, `warn`, `error`. |
 | `PORT` | `3000` | Integer between 0 and 65535 for the health server. `0` picks an ephemeral port, which makes the container health check impractical. |
-| `DATA_DIR` | `./data` | Reserved for durable state. **Future:** the SQLite slice will write here; on current `main` nothing is persisted yet. |
+| `DATA_DIR` | `./data` | Directory for the SQLite database `kodyazar.sqlite` and its `-wal`/`-shm` sidecars. Created on first boot; see [Storage and backups](#storage-and-backups). |
 
 Validation runs before anything else. A bad value stops the process with exit
 code 1 and a message that names the variable but never echoes its value, for
@@ -62,12 +62,14 @@ npm start
 
 Startup order:
 
-1. the health server listens on `PORT`;
-2. the log line `kodyazar-bot ready` is written with the config summary (token
+1. the SQLite database is opened and migrated, logging `storage ready` with only
+   `schema_version`;
+2. the health server listens on `PORT`;
+3. the log line `kodyazar-bot ready` is written with the config summary (token
    masked);
-3. the command catalogue is PUT to Discord (guild-scoped when `GUILD_ID` is
+4. the command catalogue is PUT to Discord (guild-scoped when `GUILD_ID` is
    set, otherwise global);
-4. the gateway connects and logs `discord gateway connected`.
+5. the gateway connects and logs `discord gateway connected`.
 
 Global commands can take up to an hour to appear. Set `GUILD_ID` during rollout
 to make `/ping` available immediately in one guild.
@@ -195,11 +197,11 @@ Watch for `kodyazar-bot ready`, then `discord gateway connected`. A failed
 health check after an upgrade means the HTTP process did not start; read the
 first error line (it names the variable or module) before rolling back.
 
-Rollback is the same procedure with the previous commit or image tag. On
-current `main` there is no persistent state, so rolling back is safe. **Future:**
-once #18 lands, copy `DATA_DIR` (the `bot-data` volume) before an upgrade and
-restore it before starting the older build, because schema migrations may not
-be reversible.
+Rollback is the same procedure with the previous commit or image tag. Copy
+`DATA_DIR` before an upgrade and restore it before starting the older build,
+because schema migrations are forward-only and a newer database may use a
+schema the old binary does not understand. See
+[Storage and backups](#storage-and-backups).
 
 ## Token rotation
 
@@ -211,9 +213,9 @@ Rotate when a token leaks, when a maintainer leaves, or on your normal schedule:
    store. Keep `CLIENT_ID` unchanged.
 3. Restart the service (`sudo systemctl restart kodyazar-bot` or
    `docker compose up --detach --force-recreate bot`).
-4. Confirm `discord gateway connected`; an invalid token produces repeated
-   `gateway closed; reconnecting` attempts that end in
-   `gateway did not become ready`.
+4. Confirm `discord gateway connected`; an invalid token closes the gateway with
+   code `4004` and logs one `gateway closed permanently` line. The process exits
+   non-zero and the supervisor reports the failure instead of retrying forever.
 
 Never place a token in a command line argument, an issue, a screenshot, or a
 committed `.env`.
@@ -231,7 +233,9 @@ committed `.env`.
 | Container reports `unhealthy` | Read `docker logs` first. Common causes are a bad token and a `PORT` mismatch between the probe and the listener. |
 | `/ping` missing in Discord | Global commands can take up to an hour. For instant rollout set `GUILD_ID` and restart; also confirm the `applications.commands` scope. |
 | `WebSocket is unavailable` | The runtime is older than Node 22, or the image was built from an unsupported base. |
-| Repeated `gateway closed; reconnecting` | Token revoked, DNS/egress blocked, or Discord incident. The client retries with capped backoff and gives up during initial connect after 5 attempts. |
+| Repeated `gateway closed; reconnecting` | Network/DNS blocked or a Discord incident. The client retries with capped backoff and gives up during initial connect after 5 attempts. Terminal codes are different: see the next row. |
+| `gateway closed permanently: <code>` | A close code Discord will never accept on retry (`4004` auth, `4010`-`4012` shard/API version, `4013`/`4014` intents). The client stops instead of reconnecting and exits non-zero. Check `TOKEN`, the enabled intents, and the API version. |
+| `storage failed to open` | `DATA_DIR` is not writable or the database is corrupt. Check ownership of the volume; the process exits 1 rather than running without settings. |
 | `shutdown timed out` | Teardown exceeded 5 seconds. Check the last log line before exit; tune the service timeout only after finding the slow step. |
 
 ## Security notes
@@ -244,10 +248,21 @@ committed `.env`.
 - The health endpoint exposes uptime and version only; still keep it on a
   trusted network.
 
-## What changes with the storage slice (Future)
+## Storage and backups
 
-When [#18](https://github.com/KodYazicam/KodYazar-Bot/issues/18) merges, this
-runbook will gain a backup/restore section for `DATA_DIR` and the `bot-data`
-volume, a migration step for upgrades, and a rollback caveat for schema changes.
-Until then, treat `DATA_DIR` as an empty mount point and do not build backup
-automation against it.
+Persistent state lives in one SQLite database at `DATA_DIR/kodyazar.sqlite`
+(`DATA_DIR` defaults to `./data`). It is created and migrated on boot; the
+`schema_migrations` table records the applied versions, and migrations are
+forward-only and transactional, so a failed migration rolls back instead of
+leaving a half-applied schema.
+
+WAL mode means the live database is three files (`kodyazar.sqlite`,
+`-wal`, `-shm`); treat them as one unit. Stop the bot and copy all three, or take
+a consistent snapshot while it runs with the SQLite backup API or
+`VACUUM INTO '<backup-file>'`. Never copy a live database with `cp` and never
+store a Discord token in it.
+
+For the Docker deployment, `DATA_DIR` is `/app/data` on the `bot-data` volume;
+the compose file and image already point there, so the volume is the backup
+unit. Restore by placing the snapshot back before starting the older or newer
+build.

@@ -47,6 +47,14 @@ function main(): void {
   const client = new DiscordClient({
     token: config.token, clientId: config.clientId, guildId: config.guildId, commands: [ping],
     log: (level, message, context) => logger.log(level, message, context),
+    // A terminal close (bad token, invalid intents, wrong API version) cannot be
+    // retried: stop serving /healthz and exit non-zero so the platform restarts or
+    // alerts instead of the container reporting healthy while the bot is offline.
+    onFatal: ({ code, reason }) => {
+      logger.log('error', 'discord gateway closed permanently', { code, reason });
+      server.close();
+      process.exitCode = 1;
+    },
   });
 
   const startDiscord = async (): Promise<void> => {

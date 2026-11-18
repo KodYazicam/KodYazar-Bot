@@ -6,6 +6,20 @@ export const API_BASE = 'https://discord.com/api/v10';
 export const GUILDS_INTENT = 1;
 const RECONNECT_CAP_MS = 30000;
 const MAX_INITIAL_ATTEMPTS = 5;
+/**
+ * Close codes Discord documents as terminal: the same IDENTIFY can never succeed,
+ * so retrying only burns the daily identify budget and hides the misconfiguration.
+ * https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes
+ */
+export const FATAL_CLOSE_CODES: ReadonlyMap<number, string> = new Map([
+  [4004, 'authentication failed; check TOKEN'],
+  [4010, 'invalid shard'],
+  [4011, 'sharding is required'],
+  [4012, 'invalid API version'],
+  [4013, 'invalid intent(s)'],
+  [4014, 'disallowed intent(s)'],
+]);
+export interface GatewayFatalEvent { code: number; reason: string }
 export interface GatewayFrame { data?: string; code?: number }
 export interface GatewaySocket {
   send(data: string): void;
@@ -23,6 +37,8 @@ export interface DiscordClientOptions {
   /** Injected scheduler keeps heartbeat and reconnect deterministic in tests. */
   schedule?: (run: () => void, ms: number) => () => void;
   log?: (level: 'info' | 'warn' | 'error', message: string, context?: Record<string, unknown>) => void;
+  /** Called once when the gateway closes with a terminal code; the client stops itself. */
+  onFatal?: (event: GatewayFatalEvent) => void;
 }
 interface Payload { op?: number; s?: number | null; t?: string; d?: unknown }
 interface Interaction { id?: string; token?: string; type?: number; data?: { name?: string } }
@@ -109,7 +125,7 @@ export class DiscordClient {
     }
     this.socket = socket;
     socket.addEventListener('message', (event) => this.onMessage(event));
-    socket.addEventListener('close', () => this.onClose());
+    socket.addEventListener('close', (event) => this.onClose(event?.code));
   }
   private onMessage(event: GatewayFrame): void {
     if (typeof event.data !== 'string') return;
@@ -189,11 +205,15 @@ export class DiscordClient {
       if (!response.ok) this.log('error', 'interaction callback failed', { status: response.status });
     } catch { this.log('error', 'interaction callback failed'); }
   }
-  private onClose(): void {
+  private onClose(code?: number): void {
     this.hb?.();
     this.hb = null;
     this.socket = null;
     if (this.stopped) return;
+    if (code !== undefined) {
+      const reason = FATAL_CLOSE_CODES.get(code);
+      if (reason !== undefined) return this.stopFatal(code, reason);
+    }
     if (!this.ready && this.attempt + 1 >= MAX_INITIAL_ATTEMPTS) {
       return this.fail(new Error('gateway did not become ready'));
     }
@@ -204,6 +224,18 @@ export class DiscordClient {
       this.rc = null;
       this.open();
     }, delay);
+  }
+  /** A terminal close: stop timers, settle a pending start(), and tell the runtime. */
+  private stopFatal(code: number, reason: string): void {
+    this.stopped = true;
+    this.hb?.(); this.rc?.();
+    this.hb = this.rc = null;
+    this.ready = false;
+    const error = new Error(`gateway closed permanently: ${code} (${reason})`);
+    this.log('error', error.message);
+    this.reject?.(error);
+    this.resolve = this.reject = this.pending = null;
+    this.options.onFatal?.({ code, reason });
   }
   private fail(error: Error): void {
     this.stopped = true;

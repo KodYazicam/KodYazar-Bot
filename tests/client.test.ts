@@ -126,3 +126,41 @@ test('a reconnect resets the heartbeat acknowledgement state', async () => {
 test('nextBackoff starts at one second and caps at thirty', () => {
   assert.deepEqual([0, 1, 4, 5, 99].map(nextBackoff), [1000, 2000, 16000, 30000, 30000]);
 });
+test('a fatal close code is not retried', async () => {
+  for (const code of [4004, 4010, 4011, 4012, 4013, 4014]) {
+    const h = harness();
+    const socket = await ready(h);
+    gateOf(h, 45000)?.fn();
+    socket.emit('close', { code });
+    const scheduled = h.gates.filter((gate) => !gate.cancelled);
+    assert.equal(scheduled.length, 0, `close code ${code} must not schedule a reconnect`);
+    assert.equal(h.sockets.length, 1);
+    assert.match(h.logs.at(-1) ?? '', new RegExp(`gateway closed permanently.*${code}`));
+    h.client.stop();
+  }
+});
+test('a fatal close before READY rejects start()', async () => {
+  const h = harness();
+  const started = h.client.start();
+  h.sockets[0]!.emit('close', { code: 4004 });
+  await assert.rejects(started, /gateway closed permanently: 4004/);
+  assert.equal(h.gates.filter((gate) => !gate.cancelled).length, 0);
+  assert.equal(h.sockets.length, 1);
+});
+test('onFatal reports a terminal close once', async () => {
+  const fatal: Array<{ code: number; reason: string }> = [];
+  const h = harness({ onFatal: (event) => fatal.push(event) });
+  const socket = await ready(h);
+  socket.emit('close', { code: 4014 });
+  socket.emit('close', { code: 4014 });
+  assert.deepEqual(fatal, [{ code: 4014, reason: 'disallowed intent(s)' }]);
+});
+test('a transient close code still reconnects', async () => {
+  for (const code of [1006, 4003, 4008]) {
+    const h = harness();
+    const socket = await ready(h);
+    socket.emit('close', { code });
+    assert.ok(gateOf(h, 0), `close code ${code} must reconnect`);
+    h.client.stop();
+  }
+});
