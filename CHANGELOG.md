@@ -46,6 +46,15 @@ All notable changes to this project are documented here. The format follows
 - `tests/dependabot-config.test.mjs`, which fails when an active Dependabot
   ecosystem has no manifest.
 
+### Changed
+
+- Discord runtime (#26): `src/index.ts` now builds a `discord.js` client with
+  only the `Guilds` intent and dispatches through `createSparkBot()` from the
+  pinned `sparkcord` SDK. `/ping` became a `CommandDefinition` default export,
+  the catalogue is registered when the client is ready, and the temporary
+  adapter's unit tests were replaced by a dispatch regression test that fails
+  when the command module or its default export breaks.
+
 ### Fixed
 
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now

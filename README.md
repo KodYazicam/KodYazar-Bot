@@ -13,9 +13,10 @@ All-in-one Discord server bot: announcements, backups, auto/reaction roles, temp
 Requires Node.js 22.13 or newer (the bot uses the built-in `node:sqlite`
 module) and `git` (the pinned `sparkcord` dependency is installed from a
 commit). Run `npm ci`, copy `.env.example` to `.env`, fill `TOKEN`
-and `CLIENT_ID`, then `npm run build && npm start`. On startup the bot registers
-`/ping`, opens the gateway with the `GUILDS` intent only (no privileged intents),
-and replies with heartbeat latency and process uptime; set `GUILD_ID` while
+and `CLIENT_ID`, then `npm run build && npm start`. On startup `sparkcord` loads
+the commands in `src/commands/` and registers `/ping`, opens the gateway with the
+`GUILDS` intent only (no privileged intents), and replies with gateway latency
+and process uptime; set `GUILD_ID` while
 developing so the command appears immediately. The health server listens on
 `PORT` (default 3000 when unset or empty; `0` picks an ephemeral port) and
 `/healthz` returns
@@ -96,17 +97,15 @@ the boot path.
 For self-hosting, see the [operator runbook](./docs/OPERATIONS.md): configuration
 reference, source and Docker deploys, health semantics, log redaction, graceful
 shutdown, upgrade/rollback, token rotation, and a troubleshooting table.
-## Gateway close codes
+## Gateway lifecycle
 
-Transient closes (`1006`, `4003`, `4008`, heartbeat ACK timeouts) are retried with
-exponential backoff capped at 30 seconds. Discord's terminal close codes — `4004`
-(authentication failed), `4010` (invalid shard), `4011` (sharding required),
-`4012` (invalid API version), `4013` (invalid intent(s)) and `4014` (disallowed
-intent(s)) — are not retried: the client logs one `gateway closed permanently`
-line, stops the `/healthz` server, and exits non-zero so the supervisor restarts
-or alerts instead of the container reporting healthy while the bot is offline.
-When that happens, check `TOKEN`, the bot intents enabled for the application,
-and that the gateway API version is still supported.
+`discord.js` owns the socket and its reconnect backoff. Terminal failures — an
+invalid token, disabled intents, or an unsupported API version — reject
+`client.login()` or surface as a client `error` event; the bot logs one
+`discord gateway failed` line, stops `/healthz`, and exits non-zero so the
+supervisor restarts or alerts instead of the container reporting healthy while
+the bot is offline. When that happens, check `TOKEN`, the bot intents enabled
+for the application, and that the gateway API version is still supported.
 
 ## Contributing and security
 
