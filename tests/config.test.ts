@@ -24,6 +24,24 @@ test('rejects out-of-range and fractional ports', () => {
   }
 });
 
+test('defaults an empty PORT instead of silently binding an ephemeral port', () => {
+  for (const port of ['', '   ']) {
+    assert.equal(parseConfig({ ...VALID, PORT: port }).port, 3000);
+  }
+});
+
+test('accepts explicit decimal ports, including the documented ephemeral 0', () => {
+  assert.equal(parseConfig({ ...VALID, PORT: '0' }).port, 0);
+  assert.equal(parseConfig({ ...VALID, PORT: '8080' }).port, 8080);
+  assert.equal(parseConfig({ ...VALID, PORT: ' 3000 ' }).port, 3000);
+});
+
+test('rejects non-decimal port syntax instead of coercing it', () => {
+  for (const port of ['0x10', '1e3', '+3000']) {
+    assert.throws(() => parseConfig({ ...VALID, PORT: port }), /PORT must be an integer/);
+  }
+});
+
 test('applies defaults and masks the token in the startup summary', () => {
   const config = parseConfig({ TOKEN: '  token  ', CLIENT_ID: '123456789012345678 ' });
   assert.deepEqual(config, { token: 'token', clientId: VALID.CLIENT_ID, guildId: undefined, logLevel: 'info', port: 3000, dataDir: './data' });
