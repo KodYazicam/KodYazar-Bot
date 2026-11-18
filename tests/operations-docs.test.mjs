@@ -110,7 +110,7 @@ test("the runbook's code-level claims match the source", () => {
   }
 
   assert.match(text, /3000/, "must document the default PORT");
-  assert.ok(config.includes("'3000'"), "src/config.ts no longer defaults PORT to 3000");
+  assert.match(config, /\?\s*3000\b/, "src/config.ts no longer defaults PORT to 3000");
 
   assert.match(text, /GUILDS/, "must document the GUILDS intent");
   assert.ok(read("src/client.ts").includes("GUILDS_INTENT"), "src/client.ts no longer identifies with GUILDS");
