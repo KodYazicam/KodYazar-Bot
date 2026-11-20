@@ -26,7 +26,10 @@ with you before publishing details.
 - Command permission checks for moderation, staff tracking, and temp voice.
 - SQLite storage and backups, which may contain message content or user data.
 - Privileged Discord intents: request only what a feature needs and document it.
-- Dependency and CI supply chain.
+- Dependency and CI supply chain, including CodeQL code scanning on every push
+  and pull request to `main` plus a weekly scheduled scan. Findings appear in the
+  repository's Security tab; `tests/code-scanning.test.mjs` keeps the workflow
+  from being removed or weakened.
 
 ## Out of scope
 

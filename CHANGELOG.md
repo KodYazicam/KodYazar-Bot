@@ -45,6 +45,12 @@ All notable changes to this project are documented here. The format follows
   `node --test "tests/**/*.test.mjs"` on every push and pull request to `main`.
 - `tests/dependabot-config.test.mjs`, which fails when an active Dependabot
   ecosystem has no manifest.
+- Code scanning (#29): `.github/workflows/codeql.yml` runs CodeQL for
+  `javascript-typescript` on every push and pull request to `main` and on a
+  weekly schedule, with least-privilege permissions and the ecosystem's
+  `Analyze (javascript-typescript)` check name. It is the first code scanning in
+  this repo, and `tests/code-scanning.test.mjs` fails `repo-hygiene` if the
+  workflow, its triggers, language, or pinned action major regress.
 
 ### Fixed
 
