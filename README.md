@@ -17,7 +17,8 @@ and `CLIENT_ID`, then `npm run build && npm start`. On startup the bot registers
 `/ping`, opens the gateway with the `GUILDS` intent only (no privileged intents),
 and replies with heartbeat latency and process uptime; set `GUILD_ID` while
 developing so the command appears immediately. The health server listens on
-`PORT` (default 3000 when unset or empty; `0` picks an ephemeral port) and
+`PORT` (default 3000 when unset or empty; `0` picks an ephemeral port on
+bare-metal runs only — the Docker image needs a fixed port) and
 `/healthz` returns
 `{"status":"ok","uptime":<seconds>,"version":"<version>"}`; other paths return
 404 and unsupported methods 405. `npm test` builds and runs the `node --test`
@@ -27,7 +28,10 @@ masks it and validation errors name the variable only.
 ## Run with Docker
 
 The image is multi-stage and runs as the unprivileged `bot` user; `tini` is PID 1
-so SIGTERM reaches the bot, and the image health check calls `/healthz`.
+so SIGTERM reaches the bot, and the image health check calls `/healthz`. The
+image needs a fixed `PORT` (default 3000): `PORT=0` is rejected by the health
+check because a published container port cannot follow an ephemeral one, so use
+an ephemeral port only for bare-metal runs.
 
 ```bash
 cp .env.example .env    # fill TOKEN and CLIENT_ID

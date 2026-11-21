@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Docker health check (#31): the shipped image no longer probes
+  `http://127.0.0.1:0/healthz` when `PORT=0` is set. `src/docker-healthcheck.ts`
+  parses `PORT` with the same decimal rules as `parseConfig()`, rejects
+  `0`/non-decimal/out-of-range values with a clear message instead of starting a
+  probe against port 0, and is covered by `tests/docker-healthcheck.test.ts`.
+  README, `.env.example`, and `docs/OPERATIONS.md` now scope `PORT=0` to
+  bare-metal runs and state that the image needs a fixed port.
+
 ### Added
 
 - SQLite storage spine (#18): `src/db.ts` opens `DATA_DIR/kodyazar.sqlite`,

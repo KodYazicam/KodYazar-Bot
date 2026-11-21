@@ -28,12 +28,28 @@ test('the Dockerfile builds in stages and runs the final stage as a non-root use
   assert.match(runtime, /^node:22-alpine/, 'runtime stage must stay on Node 22 Alpine');
   assert.match(runtime, /^USER\s+bot\s*$/m, 'runtime stage must switch to the unprivileged bot user');
   assert.doesNotMatch(runtime, /^USER\s+(root|0)\s*$/m, 'the runtime image must never run as root');
-  assert.match(runtime, /HEALTHCHECK[\s\S]*\/healthz/, 'the runtime image must keep a /healthz health check');
+  assert.match(
+    runtime,
+    /HEALTHCHECK[\s\S]*dist\/src\/docker-healthcheck\.js/,
+    'the runtime image must keep the validated /healthz health check',
+  );
   assert.match(runtime, /ENTRYPOINT\s+\[[^\]]*tini/, 'tini must stay as PID 1 to forward SIGTERM');
 
   const build = parts[0];
   assert.match(build, /npm ci/, 'the build stage must install from the lockfile with npm ci');
   assert.ok(!/COPY\s+\.\s+\.\s*$/m.test(dockerfile), 'never copy the whole build context into the image');
+});
+
+test('the image health check validates PORT instead of probing port 0', () => {
+  const runtime = stages(dockerfile).at(-1);
+  assert.doesNotMatch(
+    runtime,
+    /process\.env\.PORT\s*\|\|/,
+    'the health check must not turn the truthy string "0" into a probe target',
+  );
+  const probe = read(join('src', 'docker-healthcheck.ts'));
+  assert.match(probe, /\/healthz/, 'the probe script must call /healthz');
+  assert.match(probe, /PORT=0 \(ephemeral\) is not supported/, 'the probe must explain why PORT=0 is rejected');
 });
 
 test('.dockerignore keeps secrets, data, and build output out of the build context', () => {

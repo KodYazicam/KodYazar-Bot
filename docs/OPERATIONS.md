@@ -38,7 +38,7 @@ All runtime configuration comes from environment variables. Start from
 | `CLIENT_ID` | — | **Required.** Application ID, a 17-20 digit snowflake, not the token. |
 | `GUILD_ID` | unset | Optional guild snowflake for instant command registration while developing. Unset means global commands. |
 | `LOG_LEVEL` | `info` | One of `debug`, `info`, `warn`, `error`. |
-| `PORT` | `3000` | Integer between 0 and 65535 for the health server. `0` picks an ephemeral port, which makes the container health check impractical. |
+| `PORT` | `3000` | Integer between 0 and 65535 for the health server. Bare-metal runs may use `0` for an ephemeral port; the Docker image and compose stack require a fixed port between 1 and 65535 because the health check cannot follow an ephemeral one. |
 | `DATA_DIR` | `./data` | Directory for the SQLite database `kodyazar.sqlite` and its `-wal`/`-shm` sidecars. Created on first boot; see [Storage and backups](#storage-and-backups). |
 
 Validation runs before anything else. A bad value stops the process with exit

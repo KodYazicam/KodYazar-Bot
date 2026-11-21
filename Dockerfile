@@ -29,6 +29,8 @@ COPY --from=build --chown=bot:bot /app/node_modules ./node_modules
 COPY --from=build --chown=bot:bot /app/dist/src ./dist/src
 USER bot
 EXPOSE 3000
+# The probe validates PORT with the same decimal rules as parseConfig() and
+# refuses PORT=0: an ephemeral port cannot be reached by a separate process.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/healthz').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"
+  CMD ["node", "dist/src/docker-healthcheck.js"]
 ENTRYPOINT ["/sbin/tini", "--", "node", "dist/src/index.js"]
