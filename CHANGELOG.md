@@ -48,6 +48,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Docker Compose port mapping (#31 follow-up): the stack now publishes the same
+  `PORT` it passes to the container (`${PORT:-3000}` on both sides) instead of a
+  hardcoded `3000:3000`, so a fixed non-default `PORT` in `.env` is reachable
+  from the host. `tests/compose-port.test.mjs` keeps the mapping and container
+  value in sync; `PORT=0` remains unsupported in compose.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

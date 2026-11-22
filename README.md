@@ -47,6 +47,10 @@ docker compose logs --follow bot
 docker compose down        # add --volumes to delete the persisted data
 ```
 
+The compose stack publishes the same `PORT` it passes to the container (default
+3000), so a fixed non-default `PORT` in `.env` stays reachable. If you use
+`docker run` with a different `PORT`, publish that same port explicitly.
+
 `.env` never enters the image (`.dockerignore` excludes it); pass secrets with
 `--env-file` or your orchestrator's secret store. CI builds the image, proves it
 runs as `bot`, and waits for the container health check to report `healthy`.

@@ -97,6 +97,10 @@ docker compose logs --follow bot
 docker compose down          # --volumes also deletes persisted data
 ```
 
+The stack publishes the same `PORT` it passes to the container (default 3000),
+so changing `PORT` in `.env` keeps the host mapping and the listener in sync.
+Use a fixed port between 1 and 65535: an ephemeral port cannot be published.
+
 `.env` is excluded from the image by `.dockerignore`; pass secrets with
 `--env-file` or your orchestrator's secret store rather than baking them in.
 
