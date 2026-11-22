@@ -48,6 +48,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Database schema guard (#35): `openDatabase()` now validates every row in
+  `schema_migrations` against the migrations compiled into the build before
+  applying anything. A database from a newer build, an unknown version, or a
+  renamed applied migration is refused with an actionable error instead of
+  being opened against the wrong schema, and the SQLite handle is closed on
+  that failure path.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

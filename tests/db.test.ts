@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { openDatabase, openGuildSettingsStore, SCHEMA_VERSION } from '../src/db.js';
 
@@ -22,6 +23,29 @@ function migrationRows(db: ReturnType<typeof openDatabase>): number {
   return row.n;
 }
 
+/** Writes a migration row the way an older, newer, or hand-edited build would. */
+function recordMigration(file: string, version: number, name: string): void {
+  const db = new DatabaseSync(file);
+  try {
+    db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(
+      version,
+      name,
+      Date.now(),
+    );
+  } finally {
+    db.close();
+  }
+}
+
+function renameMigration(file: string, version: number, name: string): void {
+  const db = new DatabaseSync(file);
+  try {
+    db.prepare('UPDATE schema_migrations SET name = ? WHERE version = ?').run(name, version);
+  } finally {
+    db.close();
+  }
+}
+
 test('creates the parent directory and applies the v1 migration exactly once', () => {
   withTempDir((dir) => {
     const file = join(dir, 'nested', 'kodyazar.sqlite');
@@ -35,6 +59,65 @@ test('creates the parent directory and applies the v1 migration exactly once', (
     const version = second.prepare('SELECT MAX(version) AS v FROM schema_migrations').get() as { v: number };
     assert.equal(version.v, SCHEMA_VERSION);
     second.close();
+  });
+});
+
+test('refuses a database written by a newer schema version', () => {
+  withTempDir((dir) => {
+    const file = join(dir, 'future.sqlite');
+    openDatabase(file).close();
+    recordMigration(file, SCHEMA_VERSION + 1, 'from_the_future');
+
+    assert.throws(
+      () => openDatabase(file),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, new RegExp(`version ${SCHEMA_VERSION + 1} is newer`));
+        assert.match(error.message, /upgrade the bot/i);
+        return true;
+      },
+    );
+  });
+});
+
+test('refuses an unknown migration version below the current schema', () => {
+  withTempDir((dir) => {
+    const file = join(dir, 'unknown.sqlite');
+    openDatabase(file).close();
+    recordMigration(file, 0, 'from_the_past');
+
+    assert.throws(() => openDatabase(file), /unknown migration version 0/);
+  });
+});
+
+test('refuses a schema history whose applied migration was renamed', () => {
+  withTempDir((dir) => {
+    const file = join(dir, 'renamed.sqlite');
+    openDatabase(file).close();
+    renameMigration(file, SCHEMA_VERSION, 'rewritten_history');
+
+    assert.throws(() => openDatabase(file), /history was rewritten/);
+  });
+});
+
+test('reopens a clean database and leaves its schema history untouched', () => {
+  withTempDir((dir) => {
+    const file = join(dir, 'clean.sqlite');
+    openDatabase(file).close();
+
+    const db = openDatabase(file);
+    try {
+      const rows = db.prepare('SELECT version, name FROM schema_migrations ORDER BY version').all() as Array<{
+        version: number;
+        name: string;
+      }>;
+      assert.deepEqual(
+        rows.map((row) => ({ version: row.version, name: row.name })),
+        [{ version: SCHEMA_VERSION, name: 'guild_settings' }],
+      );
+    } finally {
+      db.close();
+    }
   });
 });
 

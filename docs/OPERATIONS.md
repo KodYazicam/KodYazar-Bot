@@ -200,7 +200,12 @@ first error line (it names the variable or module) before rolling back.
 Rollback is the same procedure with the previous commit or image tag. Copy
 `DATA_DIR` before an upgrade and restore it before starting the older build,
 because schema migrations are forward-only and a newer database may use a
-schema the old binary does not understand. See
+schema the old binary does not understand. The bot enforces this at startup: if
+`schema_migrations` records a version newer than the binary supports, an
+unknown version, or a renamed applied migration, it logs `storage failed to
+open` and exits non-zero instead of running. Restore the pre-upgrade snapshot
+or start the newer build; never edit or delete rows in `schema_migrations` to
+force startup. Treat applied migration names as immutable. See
 [Storage and backups](#storage-and-backups).
 
 ## Token rotation

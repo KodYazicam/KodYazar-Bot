@@ -62,11 +62,51 @@ function assertSettingValue(value: unknown): asserts value is string {
 export function openDatabase(file: string): DatabaseSync {
   if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
-  db.exec('PRAGMA journal_mode = WAL');
-  db.exec('PRAGMA foreign_keys = ON');
-  db.exec('PRAGMA busy_timeout = 5000');
-  migrate(db);
-  return db;
+  try {
+    db.exec('PRAGMA journal_mode = WAL');
+    db.exec('PRAGMA foreign_keys = ON');
+    db.exec('PRAGMA busy_timeout = 5000');
+    migrate(db);
+    return db;
+  } catch (error) {
+    // A database we refuse to open must not keep a WAL handle or a lock open.
+    db.close();
+    throw error;
+  }
+}
+
+/**
+ * Compares the recorded history with the migrations compiled into this build.
+ * Refuses a database written by a newer build, an unknown version, or a
+ * renamed applied migration, so an older binary never runs against a schema
+ * it does not understand.
+ */
+function assertCompatibleHistory(db: DatabaseSync): Set<number> {
+  const rows = db
+    .prepare('SELECT version, name FROM schema_migrations ORDER BY version')
+    .all() as Array<{ version: number; name: string }>;
+  const known = new Map(MIGRATIONS.map((migration) => [migration.version, migration.name]));
+
+  for (const row of rows) {
+    if (row.version > SCHEMA_VERSION) {
+      throw new Error(
+        `database schema version ${row.version} is newer than this build supports (${SCHEMA_VERSION}); upgrade the bot before opening this database`,
+      );
+    }
+    const expected = known.get(row.version);
+    if (expected === undefined) {
+      throw new Error(
+        `database schema history contains unknown migration version ${row.version}; restore a backup or use the build that wrote it`,
+      );
+    }
+    if (expected !== row.name) {
+      throw new Error(
+        `database schema history was rewritten: migration ${row.version} is recorded under a different name than this build expects ("${expected}"); restore a backup or use a matching build`,
+      );
+    }
+  }
+
+  return new Set(rows.map((row) => row.version));
 }
 
 /** Applies pending migrations in order; each one commits or rolls back as a unit. */
@@ -78,8 +118,7 @@ export function migrate(db: DatabaseSync): void {
       applied_at INTEGER NOT NULL
     );
   `);
-  const rows = db.prepare('SELECT version FROM schema_migrations').all() as Array<{ version: number }>;
-  const applied = new Set(rows.map((row) => row.version));
+  const applied = assertCompatibleHistory(db);
   const record = db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)');
 
   for (const migration of MIGRATIONS) {
