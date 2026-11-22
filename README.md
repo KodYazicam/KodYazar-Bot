@@ -18,9 +18,10 @@ and `CLIENT_ID`, then `npm run build && npm start`. On startup the bot registers
 and replies with heartbeat latency and process uptime; set `GUILD_ID` while
 developing so the command appears immediately. The health server listens on
 `PORT` (default 3000 when unset or empty; `0` picks an ephemeral port) and
-`/healthz` returns
-`{"status":"ok","uptime":<seconds>,"version":"<version>"}`; other paths return
-404 and unsupported methods 405. `npm test` builds and runs the `node --test`
+`/healthz` answers `GET` and `HEAD` with
+`{"status":"ok","uptime":<seconds>,"version":"<version>"}`; `HEAD` omits the
+body. Other paths return 404, and other methods return 405 with
+`Allow: GET, HEAD`. `npm test` builds and runs the `node --test`
 suite without a token or network. The token is never printed: the startup summary
 masks it and validation errors name the variable only.
 

@@ -48,6 +48,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Health probe: `HEAD /healthz` now returns the same headers as `GET` without a
+  body, and `405` responses advertise `Allow: GET, HEAD` as required by HTTP
+  (#37).
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

@@ -108,7 +108,9 @@ docker compose down          # --volumes also deletes persisted data
 {"status":"ok","uptime":12.5,"version":"0.1.0"}
 ```
 
-Any other path returns `404`; any method other than `GET` returns `405`. The
+`HEAD /healthz` returns the same headers with no body, so HEAD-based probes can
+check liveness without downloading the payload. Any other path returns `404`;
+any method other than `GET` or `HEAD` returns `405` with `Allow: GET, HEAD`. The
 payload contains no guild data and no secrets.
 
 **This is a liveness signal, not a readiness signal.** It does not prove that
