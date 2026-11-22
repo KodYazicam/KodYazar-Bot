@@ -48,6 +48,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- A command handler that throws now still acknowledges its interaction with an
+  ephemeral `Something went wrong. Please try again.` reply instead of leaving
+  the user with Discord's "The application did not respond" timeout (#33).
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

@@ -6,6 +6,8 @@ export const API_BASE = 'https://discord.com/api/v10';
 export const GUILDS_INTENT = 1;
 const RECONNECT_CAP_MS = 30000;
 const MAX_INITIAL_ATTEMPTS = 5;
+/** Shown only to the invoking user when a command handler throws. */
+export const COMMAND_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 /**
  * Close codes Discord documents as terminal: the same IDENTIFY can never succeed,
  * so retrying only burns the daily identify budget and hides the misconfiguration.
@@ -185,6 +187,7 @@ export class DiscordClient {
     const command = this.options.commands.find((item) => item.name === interaction.data?.name);
     if (!command) return;
     let content: string | undefined;
+    let ephemeral = false;
     try {
       await command.run({
         latencyMs: this.latencyMs,
@@ -193,14 +196,18 @@ export class DiscordClient {
       });
     } catch (error) {
       this.log('error', 'command threw', { error: error instanceof Error ? error.message : 'unknown' });
-      return;
+      // Discord requires an interaction callback within 3 seconds. Returning
+      // here would leave the user with "The application did not respond", so
+      // answer with a generic error that only the invoker can see.
+      content = COMMAND_ERROR_MESSAGE;
+      ephemeral = true;
     }
     if (content === undefined) return;
     try {
       const response = await this.fetchImpl(`${API_BASE}/interactions/${interaction.id}/${interaction.token}/callback`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ type: 4, data: { content } }),
+        body: JSON.stringify({ type: 4, data: ephemeral ? { content, flags: 64 } : { content } }),
       });
       if (!response.ok) this.log('error', 'interaction callback failed', { status: response.status });
     } catch { this.log('error', 'interaction callback failed'); }

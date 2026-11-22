@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DiscordClient, type DiscordClientOptions, type GatewayFrame, type GatewaySocket, nextBackoff } from '../src/client.js';
+import { COMMAND_ERROR_MESSAGE, DiscordClient, type Command, type DiscordClientOptions, type GatewayFrame, type GatewaySocket, nextBackoff } from '../src/client.js';
 import { ping } from '../src/commands/ping.js';
 class FakeSocket implements GatewaySocket {
   readonly sent: string[] = [];
@@ -77,6 +77,27 @@ test('ignores interactions for commands it does not own', async () => {
   socket.dispatch(interaction('ban'));
   await tick();
   assert.equal(h.fetchCalls.length, 0);
+  h.client.stop();
+});
+test('a throwing command still acknowledges the interaction with an ephemeral error', async () => {
+  const boom: Command = {
+    name: 'boom',
+    description: 'Always throws.',
+    run() { throw new Error('handler exploded'); },
+  };
+  const h = harness({ commands: [boom] });
+  const socket = await ready(h);
+  socket.dispatch(interaction('boom'));
+  await tick();
+  assert.equal(h.fetchCalls.length, 1, 'the interaction must be acknowledged exactly once');
+  const call = h.fetchCalls[0]!;
+  assert.equal(call.url, 'https://discord.com/api/v10/interactions/interaction-1/interaction-token/callback');
+  assert.equal(call.init.method, 'POST');
+  assert.deepEqual(JSON.parse(String(call.init.body)), {
+    type: 4,
+    data: { content: COMMAND_ERROR_MESSAGE, flags: 64 },
+  });
+  assert.match(h.logs.join(' '), /error:command threw/);
   h.client.stop();
 });
 test('reconnects on an unacknowledged heartbeat', async () => {
