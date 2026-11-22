@@ -96,6 +96,39 @@ test('keeps a newline in the message on a single physical line', () => {
   assert.equal(parsed()[0]!.msg, 'first\nsecond');
 });
 
+test('serialises a valid Date as an ISO-8601 string', () => {
+  const { logger, parsed } = capture();
+  logger.log('info', 'timestamp', { at: new Date(NOW) });
+  assert.equal(parsed()[0]!.at, '2023-11-14T22:13:20.000Z');
+});
+
+test('serialises an invalid Date instead of throwing', () => {
+  const { logger, lines, parsed } = capture();
+  assert.doesNotThrow(() => logger.log('info', 'bad timestamp', { at: new Date(Number.NaN) }));
+  assert.equal(parsed()[0]!.at, 'Invalid Date');
+  assert.equal(lines.length, 1);
+});
+
+test('does not call a context toJSON that returns a registered secret', () => {
+  const { logger, lines, parsed } = capture({ secrets: [SECRET] });
+  logger.log('info', 'custom payload', { payload: { toJSON: () => ({ leaked: SECRET }) } });
+  assert.equal(lines[0]!.includes(SECRET), false);
+  assert.deepEqual(parsed()[0]!.payload, {});
+});
+
+test('does not call a throwing context toJSON', () => {
+  const { logger, parsed } = capture();
+  const payload = { toJSON: () => { throw new Error('boom'); } };
+  assert.doesNotThrow(() => logger.log('info', 'custom payload', { payload }));
+  assert.equal(parsed()[0]!.msg, 'custom payload');
+});
+
+test('keeps an invalid injected clock from throwing', () => {
+  const { logger, parsed } = capture({ now: () => new Date(Number.NaN) });
+  assert.doesNotThrow(() => logger.log('info', 'clock'));
+  assert.equal(parsed()[0]!.ts, 'Invalid Date');
+});
+
 test('logs a __proto__ key as data without changing the output prototype', () => {
   const { logger, lines, parsed } = capture();
   const context = JSON.parse('{"__proto__":{"polluted":true},"ok":1}') as Record<string, unknown>;

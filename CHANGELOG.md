@@ -59,3 +59,8 @@ All notable changes to this project are documented here. The format follows
 - Scheduled Dependabot runs no longer fail on `main` with
   `dependency_file_not_found`: the `github-actions` ecosystem now has a workflow
   file, and the `npm` ecosystem is commented out until #1 adds `package.json`.
+- Logger serialisation no longer throws or bypasses redaction on special context
+  values (#44): an invalid `Date` is emitted as `"Invalid Date"` instead of
+  raising `RangeError`, and function-valued properties (including an own
+  `toJSON`) are treated as non-data, so a callable `toJSON` can no longer return
+  an unredacted secret or throw after the redaction pass.
