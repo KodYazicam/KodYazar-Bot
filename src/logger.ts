@@ -12,10 +12,33 @@ const MIN_SECRET_LENGTH = 6;
 const LEVEL_WEIGHT: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 };
 /** Matched against the key with separators stripped, e.g. `access_token` → `accesstoken`. */
 const SENSITIVE_SUFFIX = /(token|secret|password|passwd|apikey|privatekey|credential|authorization|cookie|session)$/;
+/**
+ * Credential words that keep their meaning after a qualifier, e.g. `secret_key`,
+ * `passwordHash`, or `tokenValue`. Matching whole words avoids redacting names
+ * such as `author` or `tokenizer`, which merely contain a credential word.
+ */
+const SENSITIVE_WORDS = new Set([
+  'auth', 'cookie', 'cookies', 'credential', 'credentials', 'encryption',
+  'passwd', 'password', 'passwords', 'secret', 'secrets', 'session',
+  'sessions', 'signing', 'token', 'tokens',
+]);
+
+/** Splits `secret_key`, `secretKey`, and `secret-key` into lower-case words. */
+function keyWords(key: string): string[] {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[^a-z0-9]+/i)
+    .map((word) => word.toLowerCase())
+    .filter(Boolean);
+}
 
 function isSensitiveKey(key: string): boolean {
-  const normalised = key.replace(/[^a-z0-9]/gi, '').toLowerCase();
-  return normalised === 'jwt' || normalised === 'bearer' || SENSITIVE_SUFFIX.test(normalised);
+  const words = keyWords(key);
+  const normalised = words.join('');
+  return normalised === 'jwt'
+    || normalised === 'bearer'
+    || SENSITIVE_SUFFIX.test(normalised)
+    || words.some((word) => SENSITIVE_WORDS.has(word));
 }
 
 function redactText(text: string, secrets: readonly string[]): string {
