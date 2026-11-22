@@ -111,9 +111,15 @@ export class DiscordClient {
     this.hb?.(); this.rc?.();
     this.hb = this.rc = null;
     const socket = this.socket;
+    const reject = this.reject;
     this.socket = null;
+    this.ready = false;
+    this.pending = this.resolve = this.reject = null;
+    // A start() that never reached READY must settle instead of leaving its
+    // caller waiting forever. After READY this is null, so a normal stop is
+    // still silent.
+    reject?.(new Error('client stopped before it became ready'));
     socket?.close(1000, 'client stopped');
-    this.ready = false; this.pending = this.resolve = this.reject = null;
   }
   private open(): void {
     let socket: GatewaySocket;
