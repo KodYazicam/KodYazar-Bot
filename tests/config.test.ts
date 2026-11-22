@@ -42,6 +42,23 @@ test('rejects non-decimal port syntax instead of coercing it', () => {
   }
 });
 
+test('defaults an empty LOG_LEVEL to info instead of failing the boot', () => {
+  for (const level of ['', '   ']) {
+    assert.equal(parseConfig({ ...VALID, LOG_LEVEL: level }).logLevel, 'info');
+  }
+  assert.equal(parseConfig({ ...VALID, LOG_LEVEL: ' INFO ' }).logLevel, 'info');
+});
+
+test('rejects an unknown LOG_LEVEL without echoing the value', () => {
+  const level = 'verbose';
+  assert.throws(() => parseConfig({ ...VALID, LOG_LEVEL: level }), (error: unknown) => {
+    assert.ok(error instanceof ConfigError);
+    assert.match(error.message, /LOG_LEVEL/);
+    assert.equal(error.message.includes(level), false);
+    return true;
+  });
+});
+
 test('applies defaults and masks the token in the startup summary', () => {
   const config = parseConfig({ TOKEN: '  token  ', CLIENT_ID: '123456789012345678 ' });
   assert.deepEqual(config, { token: 'token', clientId: VALID.CLIENT_ID, guildId: undefined, logLevel: 'info', port: 3000, dataDir: './data' });
