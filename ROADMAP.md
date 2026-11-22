@@ -5,20 +5,19 @@ real problems. Open an issue before starting a large change.
 
 ## Now
 
-- Land the governance baseline: contribution, security, roadmap, changelog,
-  issue/PR templates, CODEOWNERS, and Dependabot.
-- Build the runnable scaffold: configuration, logging, health check, one slash
-  command, tests, and CI ([#1](https://github.com/KodYazicam/KodYazar-Bot/issues/1)).
+- Finish the pinned `sparkcord` SDK migration
+  ([#26](https://github.com/KodYazicam/KodYazar-Bot/issues/26)) so the runtime
+  stops carrying a duplicate gateway adapter.
 
 ## Next
 
+- TR/EN strings from the first command, with English fallback
+  ([#48](https://github.com/KodYazicam/KodYazar-Bot/issues/48)).
 - One issue per feature area, each with tests and documented permissions:
   announcements, backups, auto/reaction roles, temp voice, moderation, staff
   tracking, and logging.
-- TR/EN strings from the first command, with English fallback.
-- SQLite migrations and per-guild settings (storage spine, #18), plus an
-  export/import path for per-guild configuration and a documented backup format
-  that never stores tokens.
+- An export/import path for per-guild configuration and a documented backup
+  format that never stores tokens; the storage spine (#18) is merged.
 
 ## Later
 
