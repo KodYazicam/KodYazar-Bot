@@ -30,7 +30,9 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env): Config {
   if (guildId !== undefined && !SNOWFLAKE.test(guildId)) {
     throw new ConfigError('GUILD_ID must be a Discord snowflake (17-20 digits)');
   }
-  const logLevel = (env.LOG_LEVEL ?? 'info').trim().toLowerCase();
+  // An empty value means "use the default", matching PORT and DATA_DIR. Docker
+  // Compose and Kubernetes can inject an empty string for an unset variable.
+  const logLevel = (env.LOG_LEVEL ?? '').trim().toLowerCase() || 'info';
   if (!LOG_LEVELS.includes(logLevel as LogLevel)) {
     throw new ConfigError(`LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')}`);
   }

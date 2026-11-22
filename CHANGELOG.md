@@ -48,6 +48,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Configuration: an empty `LOG_LEVEL` now falls back to the documented `info`
+  default instead of failing startup, matching how empty `PORT` and `DATA_DIR`
+  are handled. Unknown non-empty levels are still rejected.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected
