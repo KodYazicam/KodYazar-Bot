@@ -61,16 +61,16 @@ forward-only; the schema version is logged once as `schema_version` in the
 
 SQLite runs in WAL mode, so while the bot is running you will also see
 `kodyazar.sqlite-wal` and `kodyazar.sqlite-shm` next to the database; treat all
-three files as one unit. Do not copy a live database with `cp`: take a
-consistent snapshot with the SQLite backup API (or
-`VACUUM INTO '<backup-file>'`). Never store Discord tokens in this database —
-bot tokens belong in the environment.
+three files as one unit. Do not copy a live database with `cp`: use the snapshot
+command in [docs/BACKUP.md](./docs/BACKUP.md), which writes a consistent copy
+while the bot is running. Never store Discord tokens in this database — bot
+tokens belong in the environment.
 
 `src/db.ts` exposes `openDatabase()` (open + migrate) and
 `openGuildSettingsStore()` (per-guild key/value settings with bound
 parameters). New tables arrive as numbered migrations in that file; a failed
-migration rolls back instead of leaving a half-applied schema. Backing up,
-restoring, and exporting settings are tracked as follow-up work in
+migration rolls back instead of leaving a half-applied schema. A portable
+export/import format for settings is tracked as follow-up work in
 [ROADMAP.md](./ROADMAP.md).
 
 ## Logging

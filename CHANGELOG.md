@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Online SQLite backups (#61): `src/backup.ts` adds `snapshotDatabase()`, which
+  uses a bound `VACUUM INTO` to write a consistent copy of a live WAL database
+  without overwriting an existing file and with mode `0600`.
+  `node dist/src/backup-cli.js <source-db> <destination-file>` exposes it for
+  operators, and `docs/BACKUP.md` documents backup, verification, and restore.
 - SQLite storage spine (#18): `src/db.ts` opens `DATA_DIR/kodyazar.sqlite`,
   applies forward-only migrations recorded in `schema_migrations` (v1 adds
   `guild_settings`), runs in WAL mode with a 5s busy timeout, and exposes a
