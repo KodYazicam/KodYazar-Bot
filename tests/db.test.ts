@@ -121,6 +121,34 @@ test('rejects invalid guild ids, keys, and values without echoing them', () => {
   }
 });
 
+test('rejects NUL in a setting value instead of storing a truncated prefix', () => {
+  const db = openDatabase(':memory:');
+  const store = openGuildSettingsStore(db);
+  try {
+    store.set(GUILD_A, 'prefix', 'keep');
+    store.set(GUILD_A, 'welcome_channel', '');
+    store.set(GUILD_A, 'welcome_message', 'merhaba dünya');
+    for (const value of ['\u0000', 'a\u0000b', 'abc\u0000']) {
+      assert.throws(
+        () => store.set(GUILD_A, 'prefix', value),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(error.message, /NUL/);
+          assert.equal(error.message.includes('\u0000'), false);
+          return true;
+        },
+      );
+    }
+    // A rejected write must not overwrite or create a row with a truncated value.
+    assert.equal(store.get(GUILD_A, 'prefix'), 'keep');
+    assert.equal(store.get(GUILD_A, 'welcome_channel'), '');
+    assert.equal(store.get(GUILD_A, 'welcome_message'), 'merhaba dünya');
+    assert.equal(store.get(GUILD_A, 'missing'), null);
+  } finally {
+    store.close();
+  }
+});
+
 test('SCHEMA_VERSION matches the highest applied migration', () => {
   const db = openDatabase(':memory:');
   try {

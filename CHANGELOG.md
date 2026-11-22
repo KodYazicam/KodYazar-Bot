@@ -48,6 +48,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Storage: a `guild_settings` value containing a NUL character is rejected
+  instead of being written as its prefix. SQLite's TEXT path stops at the first
+  NUL, so the store previously accepted a write that could never round-trip; a
+  rejected write leaves the existing value untouched.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected
