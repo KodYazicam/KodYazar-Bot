@@ -45,7 +45,10 @@ function serialise(value: unknown, secrets: readonly string[], seen: WeakSet<obj
     // replacing the result's prototype (which could hide fields or inject toJSON).
     const result = Object.create(null) as Record<string, unknown>;
     for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-      result[key] = isSensitiveKey(key) ? REDACTED : serialise(item, secrets, seen, depth + 1);
+      // A registered secret can also arrive as a key (for example a map built
+      // from untrusted input), so redact the key itself and not only its value.
+      // A key that merely names a credential keeps its name and loses its value.
+      result[redactText(key, secrets)] = isSensitiveKey(key) ? REDACTED : serialise(item, secrets, seen, depth + 1);
     }
     return result;
   } finally {
