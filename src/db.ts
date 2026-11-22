@@ -53,6 +53,10 @@ function assertSettingKey(key: unknown): asserts key is string {
 
 function assertSettingValue(value: unknown): asserts value is string {
   if (typeof value !== 'string') throw new Error('setting value must be a string');
+  // SQLite's TEXT path stops at the first NUL, so a value such as "a\0b" would
+  // be written as "a" and read back silently truncated. Reject it instead of
+  // accepting a write that cannot round-trip.
+  if (value.includes('\u0000')) throw new Error('setting value must not contain NUL');
   if (Buffer.byteLength(value, 'utf8') > MAX_SETTING_VALUE_BYTES) {
     throw new Error(`setting value must be at most ${MAX_SETTING_VALUE_BYTES} bytes`);
   }
