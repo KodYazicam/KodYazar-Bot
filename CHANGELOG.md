@@ -48,6 +48,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Logger: a context value that throws while being read (a getter, a Proxy trap,
+  or any other hostile object) no longer aborts the log line or escapes to the
+  caller. The message is still emitted, the unsafe context is replaced with
+  `[Unserialisable]`, and `context_error` names the cause after the same secret
+  redaction. This keeps the documented "logging never throws" guarantee.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

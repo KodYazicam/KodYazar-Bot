@@ -89,6 +89,45 @@ test('never throws on circular context', () => {
   assert.equal(JSON.stringify(line).includes('[Circular]'), true);
 });
 
+test('a throwing getter in the context cannot abort the log line', () => {
+  const { logger, lines, parsed } = capture({ secrets: [SECRET] });
+  const context: Record<string, unknown> = {};
+  Object.defineProperty(context, 'boom', {
+    enumerable: true,
+    get() { throw new Error(`getter exploded with ${SECRET}`); },
+  });
+  assert.doesNotThrow(() => logger.log('info', 'hostile context', context));
+  assert.equal(lines.length, 1);
+  assert.equal(parsed()[0]!.msg, 'hostile context');
+  assert.equal(parsed()[0]!.context, '[Unserialisable]');
+  assert.equal(parsed()[0]!.context_error, `getter exploded with ${REDACTED}`);
+  assert.equal(lines[0]!.includes(SECRET), false);
+});
+
+test('a throwing getter nested in the context cannot abort the log line', () => {
+  const { logger, lines, parsed } = capture();
+  const payload: Record<string, unknown> = {};
+  Object.defineProperty(payload, 'boom', {
+    enumerable: true,
+    get() { throw new Error('nested getter'); },
+  });
+  assert.doesNotThrow(() => logger.log('info', 'nested context', { payload }));
+  assert.equal(lines.length, 1);
+  assert.equal(parsed()[0]!.context, '[Unserialisable]');
+  assert.equal(parsed()[0]!.context_error, 'nested getter');
+});
+
+test('a Proxy whose ownKeys trap throws cannot abort the log line', () => {
+  const { logger, lines, parsed } = capture();
+  const hostile = new Proxy({}, {
+    ownKeys() { throw new Error('ownKeys trap'); },
+  });
+  assert.doesNotThrow(() => logger.log('info', 'proxy context', { hostile }));
+  assert.equal(lines.length, 1);
+  assert.equal(parsed()[0]!.context, '[Unserialisable]');
+  assert.equal(parsed()[0]!.context_error, 'ownKeys trap');
+});
+
 test('keeps a newline in the message on a single physical line', () => {
   const { logger, lines, parsed } = capture();
   logger.log('warn', 'first\nsecond');
