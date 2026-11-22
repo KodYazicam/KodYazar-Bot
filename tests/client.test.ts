@@ -164,3 +164,25 @@ test('a transient close code still reconnects', async () => {
     h.client.stop();
   }
 });
+test('ignores non-object gateway frames instead of throwing out of the listener', async () => {
+  const h = harness();
+  const socket = await ready(h);
+  for (const frame of ['null', '42', '"text"', 'true', '[]']) {
+    assert.doesNotThrow(() => socket.emit('message', { data: frame }), `frame ${frame} must not throw`);
+  }
+  assert.match(h.logs.join(' '), /ignored malformed gateway frame/);
+  assert.equal(h.sockets.length, 1);
+  h.client.stop();
+});
+test('ignores INTERACTION_CREATE payloads that are not objects', async () => {
+  const h = harness();
+  const socket = await ready(h);
+  for (const [sequence, data] of [[2, null], [3, undefined], [4, 'nope'], [5, [1, 2]]] as const) {
+    socket.emit('message', { data: JSON.stringify({ op: 0, s: sequence, t: 'INTERACTION_CREATE', d: data }) });
+  }
+  await tick();
+  assert.equal(h.fetchCalls.length, 0);
+  assert.match(h.logs.join(' '), /ignored malformed interaction payload/);
+  assert.equal(h.sockets.length, 1);
+  h.client.stop();
+});

@@ -129,10 +129,17 @@ export class DiscordClient {
   }
   private onMessage(event: GatewayFrame): void {
     if (typeof event.data !== 'string') return;
-    let payload: Payload;
+    let parsed: unknown;
     try {
-      payload = JSON.parse(event.data) as Payload;
+      parsed = JSON.parse(event.data);
     } catch { return this.log('warn', 'ignored malformed gateway frame'); }
+    // JSON.parse also accepts `null`, primitives, and arrays. Property access on
+    // a non-object (notably null) would throw out of this socket listener and
+    // take the process down, so only well-formed object frames are dispatched.
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return this.log('warn', 'ignored malformed gateway frame');
+    }
+    const payload = parsed as Payload;
     if (typeof payload.s === 'number') this.seq = payload.s;
     if (payload.op === 10) this.onHello(payload.d);
     else if (payload.op === 11) {
@@ -177,7 +184,13 @@ export class DiscordClient {
       this.attempt = 0;
       this.resolve?.(); this.resolve = this.reject = null;
     } else if (type === 'INTERACTION_CREATE') {
-      void this.onInteraction(data as Interaction);
+      // `d` is untrusted frame data: a missing or non-object payload must not
+      // become an unhandled rejection inside the async handler.
+      if (data !== null && typeof data === 'object' && !Array.isArray(data)) {
+        void this.onInteraction(data as Interaction);
+      } else {
+        this.log('warn', 'ignored malformed interaction payload');
+      }
     }
   }
   private async onInteraction(interaction: Interaction): Promise<void> {

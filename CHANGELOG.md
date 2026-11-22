@@ -56,6 +56,11 @@ All notable changes to this project are documented here. The format follows
   so the client stops its timers, rejects a pending `start()`, closes the
   `/healthz` server, and exits non-zero instead of reconnecting forever. Transient
   codes (`1006`, `4003`, `4008`) keep the existing capped backoff.
+- Gateway frame shape is validated (#50): a valid JSON value that is not an
+  object (`null`, a primitive, or an array) is now ignored with a warning
+  instead of throwing out of the socket listener, and an `INTERACTION_CREATE`
+  whose `d` is missing or not an object is dropped instead of becoming an
+  unhandled rejection. A malformed frame can no longer take the process down.
 - Scheduled Dependabot runs no longer fail on `main` with
   `dependency_file_not_found`: the `github-actions` ecosystem now has a workflow
   file, and the `npm` ecosystem is commented out until #1 adds `package.json`.
