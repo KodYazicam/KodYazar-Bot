@@ -2,11 +2,11 @@
 
 All-in-one Discord server bot: announcements, backups, auto/reaction roles, temp voice, moderation, staff tracking, logging. Local-first, SQLite, TR/EN.
 
-> **Status:** pre-release. The runnable scaffold is tracked in
-> [#1](https://github.com/KodYazicam/KodYazar-Bot/issues/1); the runtime spine
-> is [#8](https://github.com/KodYazicam/KodYazar-Bot/issues/8), the Discord
-> connection plus `/ping` is [#12](https://github.com/KodYazicam/KodYazar-Bot/issues/12),
-> and the redacting logger is [#16](https://github.com/KodYazicam/KodYazar-Bot/issues/16).
+> **Status:** pre-release. The runnable runtime — config validation, JSON
+> logging, `GET /healthz`, SQLite storage, `/ping`, and the Docker/compose
+> deploy — is merged; the umbrella tracker is
+> [#1](https://github.com/KodYazicam/KodYazar-Bot/issues/1). See
+> [ROADMAP.md](./ROADMAP.md) for what is next.
 
 ## Quick start
 
