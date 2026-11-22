@@ -48,6 +48,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Logger: a registered secret value is now also redacted when it appears as an
+  object key, not only as a value or inside a message, so the bot token cannot
+  leak through a context map keyed by it (#39).
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

@@ -105,3 +105,14 @@ test('logs a __proto__ key as data without changing the output prototype', () =>
   assert.equal(lines[0]!.includes('"__proto__"'), true);
   assert.equal(({} as Record<string, unknown>).polluted, undefined);
 });
+
+test('redacts a registered secret that appears as an object key', () => {
+  const { logger, lines, parsed } = capture({ secrets: [SECRET] });
+  logger.log('info', 'header map', {
+    [SECRET]: 'top-level',
+    headers: { [SECRET]: 'value', accept: 'application/json' },
+  });
+  assert.equal(lines[0]!.includes(SECRET), false);
+  assert.equal(parsed()[0]![REDACTED], 'top-level');
+  assert.deepEqual(parsed()[0]!.headers, { [REDACTED]: 'value', accept: 'application/json' });
+});
