@@ -8,8 +8,12 @@ services:
       - .env
     environment:
       DATA_DIR: /app/data
+      # Publish the same port the container listens on. Compose interpolates
+      # this from the project .env (or the shell); PORT=0 is not supported here
+      # because an ephemeral container port cannot be published reliably.
+      PORT: ${PORT:-3000}
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     volumes:
       - bot-data:/app/data
     restart: unless-stopped
