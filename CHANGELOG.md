@@ -48,6 +48,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Source deploys: `npm start` now loads `.env` with Node's
+  `--env-file-if-exists` flag, so the documented `cp .env.example .env` then
+  `npm start` flow picks up `TOKEN` and `CLIENT_ID` instead of failing with
+  `TOKEN is required`. Variables already set in the environment keep precedence,
+  and a missing `.env` is not an error.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected
