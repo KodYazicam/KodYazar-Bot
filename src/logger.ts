@@ -24,12 +24,20 @@ function redactText(text: string, secrets: readonly string[]): string {
   return result;
 }
 
+/** An invalid Date must not turn a diagnostic log line into a thrown RangeError. */
+function toIsoTimestamp(value: Date): string {
+  return Number.isNaN(value.getTime()) ? 'Invalid Date' : value.toISOString();
+}
+
 function serialise(value: unknown, secrets: readonly string[], seen: WeakSet<object>, depth: number): unknown {
   if (typeof value === 'string') return redactText(value, secrets);
   if (typeof value === 'bigint') return value.toString();
+  // Functions are not JSON data. Copying one (notably an own `toJSON`) would let
+  // JSON.stringify call it after redaction, leaking its result or throwing.
+  if (typeof value === 'function') return undefined;
   if (value === null || typeof value !== 'object') return value;
   if (depth > MAX_DEPTH) return TRUNCATED;
-  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Date) return toIsoTimestamp(value);
   if (value instanceof Error) {
     return {
       name: value.name,
@@ -86,7 +94,7 @@ class JsonLogger implements Logger {
     const merged = serialise({ ...this.context, ...context }, this.secrets, new WeakSet(), 0) as LogContext;
     const line = {
       ...merged,
-      ts: new Date(this.now()).toISOString(),
+      ts: toIsoTimestamp(new Date(this.now())),
       level,
       msg: redactText(message, this.secrets),
     };
