@@ -6,6 +6,8 @@ export type LogContext = Record<string, unknown>;
 export const REDACTED = '<redacted>';
 const CIRCULAR = '[Circular]';
 const TRUNCATED = '[Truncated]';
+/** A context value that throws while being read cannot be logged safely. */
+const UNSERIALISABLE = '[Unserialisable]';
 const MAX_DEPTH = 6;
 /** Values shorter than this are too generic to replace safely. */
 const MIN_SECRET_LENGTH = 6;
@@ -22,6 +24,16 @@ function redactText(text: string, secrets: readonly string[]): string {
   let result = text;
   for (const secret of secrets) result = result.split(secret).join(REDACTED);
   return result;
+}
+
+/** Best-effort reason for a context value that threw while being serialised. */
+function describeError(error: unknown, secrets: readonly string[]): string {
+  try {
+    if (error instanceof Error) return redactText(error.message, secrets);
+    return typeof error === 'string' ? redactText(error, secrets) : 'unknown';
+  } catch {
+    return 'unknown';
+  }
 }
 
 function serialise(value: unknown, secrets: readonly string[], seen: WeakSet<object>, depth: number): unknown {
@@ -83,7 +95,18 @@ class JsonLogger implements Logger {
 
   log(level: LogLevel, message: string, context: LogContext = {}): void {
     if (LEVEL_WEIGHT[level] < LEVEL_WEIGHT[this.level]) return;
-    const merged = serialise({ ...this.context, ...context }, this.secrets, new WeakSet(), 0) as LogContext;
+    let merged: LogContext;
+    try {
+      // Spreading invokes getters, and serialise walks untrusted objects. A
+      // throwing getter or Proxy trap must not abort the log line or escape to
+      // the caller: keep the message, drop the unsafe context, and name why.
+      merged = serialise({ ...this.context, ...context }, this.secrets, new WeakSet(), 0) as LogContext;
+    } catch (error) {
+      merged = {
+        context: UNSERIALISABLE,
+        context_error: describeError(error, this.secrets),
+      };
+    }
     const line = {
       ...merged,
       ts: new Date(this.now()).toISOString(),
