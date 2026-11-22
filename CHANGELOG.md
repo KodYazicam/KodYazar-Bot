@@ -48,6 +48,10 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Logger: credential key names that carry a qualifier are now redacted too.
+  Keys such as `secret_key`, `secretKey`, `passwordHash`, `tokenValue`,
+  `signingKey`, `encryptionKey`, and `auth` no longer log their values in clear
+  text, while non-credential names such as `author` and `tokenizer` stay intact.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

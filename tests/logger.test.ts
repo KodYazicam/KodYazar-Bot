@@ -57,6 +57,32 @@ test('leaves non-secret identifiers and short values intact', () => {
   assert.equal(parsed()[0]!.text, 'abc stays');
 });
 
+test('redacts credential key names that carry a qualifier', () => {
+  const { logger, parsed } = capture();
+  logger.log('info', 'credentials', {
+    secret_key: 'first',
+    secretKey: 'second',
+    passwordHash: 'third',
+    tokenValue: 'fourth',
+    signingKey: 'fifth',
+    encryptionKey: 'sixth',
+    auth: 'Bearer seventh',
+    tokens: ['eighth'],
+    author: 'Ada Lovelace',
+    tokenizer: 'not a credential',
+  });
+  const line = parsed()[0]!;
+  for (const key of [
+    'secret_key', 'secretKey', 'passwordHash', 'tokenValue',
+    'signingKey', 'encryptionKey', 'auth',
+  ]) {
+    assert.equal(line[key], REDACTED, `${key} must be redacted`);
+  }
+  assert.equal(line.tokens, REDACTED);
+  assert.equal(line.author, 'Ada Lovelace');
+  assert.equal(line.tokenizer, 'not a credential');
+});
+
 test('child loggers merge context without leaking into the parent', () => {
   const { logger, parsed } = capture({ context: { service: 'kodyazar-bot' } });
   const child = logger.child({ requestId: 'r1' });
