@@ -17,11 +17,14 @@ slices, starting with the runtime spine in
 
 ## Setup
 
-Run `npm ci`, `npm run typecheck`, and `npm test` locally with Node 22 or newer;
-`npm test` builds with `tsc` and runs `node --test`. The `CI` workflow runs the
-same commands on every push and pull request to `main`, and the `repo-hygiene`
-workflow asserts that every active Dependabot ecosystem has its manifest. Both
-the `npm` and `github-actions` ecosystems are active because both manifests exist.
+Run `npm ci`, `npm run typecheck`, `npm test`, and
+`node --test "tests/**/*.test.mjs"` locally with Node 22 or newer; `npm test`
+builds with `tsc` and runs the TypeScript suite, while the `.mjs` files hold the
+static repository checks. The `CI` workflow runs the build and test commands on
+every push and pull request to `main`, and the `repo-hygiene` workflow runs the
+static checks and asserts that every active Dependabot ecosystem has its
+manifest. Both the `npm` and `github-actions` ecosystems are active because both
+manifests exist.
 
 ## Branches and commits
 
@@ -35,8 +38,9 @@ the `npm` and `github-actions` ecosystems are active because both manifests exis
 ## Pull requests
 
 - Explain the problem, the change, how you tested it, and the risk and rollback.
-- Add or update tests when behaviour changes. `node --test "tests/**/*.test.mjs"`
-  works today; #1 adds the full npm test runner.
+- Add or update tests when behaviour changes. Run `npm test` for the compiled
+  TypeScript suite and `node --test "tests/**/*.test.mjs"` for the static
+  repository checks.
 - Update `README.md` and `CHANGELOG.md` for user-visible changes.
 - A maintainer reviews every pull request. Do not force-push after review starts.
 

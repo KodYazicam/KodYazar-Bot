@@ -13,6 +13,7 @@ Closes #
 
 ```bash
 npm test
+node --test "tests/**/*.test.mjs"
 ```
 
 ## Risk and rollback
@@ -21,7 +22,7 @@ npm test
 ## Checklist
 
 - [ ] Tests cover the change, or the change is documentation-only
-- [ ] `npm test` passes locally once the test runner exists
+- [ ] `npm test` and `node --test "tests/**/*.test.mjs"` pass locally
 - [ ] README, CHANGELOG, or docs updated if behaviour changed
 - [ ] No secrets, tokens, database dumps, or personal data added
 - [ ] MIT license and attribution unchanged

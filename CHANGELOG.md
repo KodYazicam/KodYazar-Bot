@@ -58,4 +58,5 @@ All notable changes to this project are documented here. The format follows
   codes (`1006`, `4003`, `4008`) keep the existing capped backoff.
 - Scheduled Dependabot runs no longer fail on `main` with
   `dependency_file_not_found`: the `github-actions` ecosystem now has a workflow
-  file, and the `npm` ecosystem is commented out until #1 adds `package.json`.
+  file. The `npm` ecosystem was commented out until #1 added `package.json`, then
+  re-enabled together with the manifest in #8 (see Added).
