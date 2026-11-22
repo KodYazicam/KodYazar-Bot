@@ -24,9 +24,27 @@ test('serves the public liveness payload on GET /healthz', async () => {
   });
 });
 
-test('unknown paths return 404 and unsupported methods 405', async () => {
+test('HEAD /healthz returns the GET headers without a body', async () => {
   await withServer(async (baseUrl) => {
-    assert.equal((await fetch(`${baseUrl}/nope`)).status, 404);
-    assert.equal((await fetch(`${baseUrl}/healthz`, { method: 'POST' })).status, 405);
+    const get = await fetch(`${baseUrl}/healthz`);
+    const body = await get.text();
+    const head = await fetch(`${baseUrl}/healthz`, { method: 'HEAD' });
+    assert.equal(head.status, 200);
+    assert.equal(head.headers.get('content-type'), 'application/json; charset=utf-8');
+    assert.equal(head.headers.get('content-length'), String(Buffer.byteLength(body)));
+    assert.equal(await head.text(), '');
+  });
+});
+
+test('unknown paths return 404 and unsupported methods 405 with Allow', async () => {
+  await withServer(async (baseUrl) => {
+    const missing = await fetch(`${baseUrl}/nope`);
+    assert.equal(missing.status, 404);
+    assert.equal(missing.headers.get('allow'), null);
+    for (const method of ['POST', 'OPTIONS']) {
+      const response = await fetch(`${baseUrl}/healthz`, { method });
+      assert.equal(response.status, 405);
+      assert.equal(response.headers.get('allow'), 'GET, HEAD');
+    }
   });
 });
