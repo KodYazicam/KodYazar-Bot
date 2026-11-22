@@ -69,8 +69,12 @@ bot tokens belong in the environment.
 `src/db.ts` exposes `openDatabase()` (open + migrate) and
 `openGuildSettingsStore()` (per-guild key/value settings with bound
 parameters). New tables arrive as numbered migrations in that file; a failed
-migration rolls back instead of leaving a half-applied schema. Backing up,
-restoring, and exporting settings are tracked as follow-up work in
+migration rolls back instead of leaving a half-applied schema. Before applying
+anything, `openDatabase()` also compares every row in `schema_migrations` with
+the migrations compiled into this build: a database written by a newer build,
+an unknown version, or a renamed applied migration is refused with an error
+instead of being opened against the wrong schema. Backing up, restoring, and
+exporting settings are tracked as follow-up work in
 [ROADMAP.md](./ROADMAP.md).
 
 ## Logging
