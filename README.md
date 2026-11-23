@@ -71,7 +71,8 @@ bot tokens belong in the environment.
 parameters). New tables arrive as numbered migrations in that file; a failed
 migration rolls back instead of leaving a half-applied schema. Use
 `npm run settings:export` to review or move per-guild configuration as a
-deterministic JSON file; see
+deterministic JSON file, and `npm run settings:import` to merge it back; try
+`--dry-run` first. See
 [Storage and backups](./docs/OPERATIONS.md#storage-and-backups).
 
 ## Logging

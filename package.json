@@ -14,7 +14,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run clean && npm run build && node --test \"dist/tests/**/*.test.js\"",
     "start": "node dist/src/index.js",
-    "settings:export": "node dist/src/settings-cli.js export"
+    "settings:export": "node dist/src/settings-cli.js export",
+    "settings:import": "node dist/src/settings-cli.js import"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

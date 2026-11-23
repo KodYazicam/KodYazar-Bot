@@ -14,7 +14,12 @@ All notable changes to this project are documented here. The format follows
   `--out`, and repeatable `--guild` options. Exports are deterministic, refuse
   to overwrite an existing file, and use mode `0600`; `GuildSettingsStore` gains
   `guildIds()` so the command can enumerate guilds without a schema change.
-  Import is the next slice (#69).
+- Portable settings import (#69): `npm run settings:import` reads a v1 document
+  from `--in` or stdin, validates the whole document before any write, merges
+  values, overwrites keys present in the file, never deletes a key, and supports
+  `--dry-run` against a read-only connection. `GuildSettingsStore.setMany()`
+  validates every entry and upserts one guild in a transaction. A NUL or a value
+  over 64 KiB is rejected without echoing the value.
 - SQLite storage spine (#18): `src/db.ts` opens `DATA_DIR/kodyazar.sqlite`,
   applies forward-only migrations recorded in `schema_migrations` (v1 adds
   `guild_settings`), runs in WAL mode with a 5s busy timeout, and exposes a

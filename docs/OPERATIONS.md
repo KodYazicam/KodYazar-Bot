@@ -281,8 +281,31 @@ The document records `format`, `version`, `exported_at`, and a `guilds` object
 sorted by guild id. An export is read-only and refuses to overwrite an existing
 file. Treat it as sensitive configuration because it contains guild, channel,
 role, and user-provided values; keep it out of git and do not attach it to
-issues. A merge-only import command is the next step (#69); until then, use a
-snapshot for restoring the whole database.
+issues.
+
+### Portable settings import
+
+`npm run settings:import` merges a v1 document into an existing database. It
+validates the whole document before writing, overwrites only the keys present in
+the file, never deletes a key, and applies each guild in one transaction. The
+database must already exist; the command never creates or migrates one, and it
+needs no `TOKEN`.
+
+```bash
+# Validate and count without writing (the database is opened read-only)
+npm run settings:import -- --in ./backups/settings.json --dry-run
+
+# Merge the document; absent keys and guilds are left untouched
+npm run settings:import -- --in ./backups/settings.json
+
+# Read stdin when --in is omitted; the direct node call keeps npm's banner out
+node dist/src/settings-cli.js import < ./backups/settings.json
+```
+
+Take a snapshot before a real import. A malformed JSON document, an unsupported
+version, an invalid guild id/key/value, a NUL, or a value over 64 KiB fails
+before any write; the error names the position, not the value. There is no
+replace mode, so use a snapshot when a restore must also delete keys.
 
 For the Docker deployment, `DATA_DIR` is `/app/data` on the `bot-data` volume;
 the compose file and image already point there, so the volume is the backup
