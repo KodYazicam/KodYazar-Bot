@@ -5,8 +5,9 @@ import { type Config, ConfigError, parseConfig, summariseConfig } from './config
 import { type GuildSettingsStore, openDatabase, openGuildSettingsStore, SCHEMA_VERSION } from './db.js';
 import { createHealthServer } from './health.js';
 import { createLogger } from './logger.js';
+import { readPackageVersion } from './version.js';
 
-const VERSION = process.env.npm_package_version ?? '0.1.0';
+const VERSION = readPackageVersion();
 const SHUTDOWN_GRACE_MS = 5000;
 
 function main(): void {
