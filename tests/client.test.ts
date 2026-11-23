@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DiscordClient, type DiscordClientOptions, type GatewayFrame, type GatewaySocket, nextBackoff } from '../src/client.js';
+import { DiscordClient, type DiscordClientOptions, type GatewayFrame, type GatewaySocket, HANDSHAKE_TIMEOUT_MS, nextBackoff } from '../src/client.js';
 import { ping } from '../src/commands/ping.js';
 class FakeSocket implements GatewaySocket {
   readonly sent: string[] = [];
@@ -163,4 +163,49 @@ test('a transient close code still reconnects', async () => {
     assert.ok(gateOf(h, 0), `close code ${code} must reconnect`);
     h.client.stop();
   }
+});
+
+test('a handshake that never reaches READY times out and reconnects', () => {
+  const h = harness();
+  const started = h.client.start();
+  // The client is retrying after the timeout, so keep the pending start quiet.
+  void started.catch(() => undefined);
+  const socket = h.sockets[0]!;
+  const handshake = gateOf(h, HANDSHAKE_TIMEOUT_MS);
+  assert.ok(handshake, 'opening a socket must schedule a handshake timeout');
+  handshake.fn();
+  assert.deepEqual(socket.closed, { code: 4000 });
+  assert.ok(h.logs.includes('warn:gateway handshake timed out'));
+  const reconnect = gateOf(h, 0);
+  assert.ok(reconnect, 'a timed-out handshake must reconnect');
+  reconnect.fn();
+  assert.equal(h.sockets.length, 2);
+  h.client.stop();
+});
+
+test('READY cancels the handshake timeout', async () => {
+  const h = harness();
+  await ready(h);
+  assert.equal(gateOf(h, HANDSHAKE_TIMEOUT_MS), undefined);
+  h.client.stop();
+});
+
+test('stop() cancels a handshake timeout that has not fired', () => {
+  const h = harness();
+  void h.client.start().catch(() => undefined);
+  h.client.stop();
+  assert.equal(h.gates.filter((gate) => !gate.cancelled).length, 0);
+});
+
+test('a reconnect after READY is bounded by the handshake timeout', async () => {
+  const h = harness();
+  const first = await ready(h);
+  first.emit('close', { code: 1006 });
+  gateOf(h, 0)?.fn();
+  const second = h.sockets[1]!;
+  const handshake = gateOf(h, HANDSHAKE_TIMEOUT_MS);
+  assert.ok(handshake, 'a reconnect must also schedule a handshake timeout');
+  handshake.fn();
+  assert.deepEqual(second.closed, { code: 4000 });
+  h.client.stop();
 });

@@ -7,6 +7,12 @@ export const GUILDS_INTENT = 1;
 const RECONNECT_CAP_MS = 30000;
 const MAX_INITIAL_ATTEMPTS = 5;
 /**
+ * Discord sends HELLO immediately after the socket opens. A connection that
+ * stays silent past this bound is treated like a failed connect so a half-open
+ * handshake cannot leave `start()` pending with no retry scheduled.
+ */
+export const HANDSHAKE_TIMEOUT_MS = 15000;
+/**
  * Close codes Discord documents as terminal: the same IDENTIFY can never succeed,
  * so retrying only burns the daily identify budget and hides the misconfiguration.
  * https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes
@@ -62,11 +68,14 @@ export class DiscordClient {
   private socket: GatewaySocket | null = null;
   private hb: (() => void) | null = null;
   private rc: (() => void) | null = null;
+  private hs: (() => void) | null = null;
   private seq: number | null = null;
   private acked = true;
   private sentAt: number | null = null;
   private ackAt: number | null = null;
   private ready = false;
+  /** Whether the connection that is open now has reached READY. */
+  private sessionReady = false;
   private stopped = false;
   private attempt = 0;
   private pending: Promise<void> | null = null;
@@ -108,12 +117,12 @@ export class DiscordClient {
   }
   stop(): void {
     this.stopped = true;
-    this.hb?.(); this.rc?.();
-    this.hb = this.rc = null;
+    this.hb?.(); this.rc?.(); this.hs?.();
+    this.hb = this.rc = this.hs = null;
     const socket = this.socket;
     this.socket = null;
     socket?.close(1000, 'client stopped');
-    this.ready = false; this.pending = this.resolve = this.reject = null;
+    this.ready = false; this.sessionReady = false; this.pending = this.resolve = this.reject = null;
   }
   private open(): void {
     let socket: GatewaySocket;
@@ -123,9 +132,17 @@ export class DiscordClient {
       this.fail(error instanceof Error ? error : new Error('gateway connection failed'));
       return;
     }
+    this.hs?.();
     this.socket = socket;
+    this.sessionReady = false;
     socket.addEventListener('message', (event) => this.onMessage(event));
     socket.addEventListener('close', (event) => this.onClose(event?.code));
+    this.hs = this.schedule(() => {
+      this.hs = null;
+      if (this.sessionReady) return;
+      this.log('warn', 'gateway handshake timed out', { timeout_ms: HANDSHAKE_TIMEOUT_MS });
+      this.socket?.close(4000, 'handshake timeout');
+    }, HANDSHAKE_TIMEOUT_MS);
   }
   private onMessage(event: GatewayFrame): void {
     if (typeof event.data !== 'string') return;
@@ -174,7 +191,9 @@ export class DiscordClient {
   private onDispatch(type: string | undefined, data: unknown): void {
     if (type === 'READY') {
       this.ready = true;
+      this.sessionReady = true;
       this.attempt = 0;
+      this.hs?.(); this.hs = null;
       this.resolve?.(); this.resolve = this.reject = null;
     } else if (type === 'INTERACTION_CREATE') {
       void this.onInteraction(data as Interaction);
@@ -206,9 +225,10 @@ export class DiscordClient {
     } catch { this.log('error', 'interaction callback failed'); }
   }
   private onClose(code?: number): void {
-    this.hb?.();
-    this.hb = null;
+    this.hs?.(); this.hb?.();
+    this.hs = this.hb = null;
     this.socket = null;
+    this.sessionReady = false;
     if (this.stopped) return;
     if (code !== undefined) {
       const reason = FATAL_CLOSE_CODES.get(code);
@@ -228,9 +248,10 @@ export class DiscordClient {
   /** A terminal close: stop timers, settle a pending start(), and tell the runtime. */
   private stopFatal(code: number, reason: string): void {
     this.stopped = true;
-    this.hb?.(); this.rc?.();
-    this.hb = this.rc = null;
+    this.hb?.(); this.rc?.(); this.hs?.();
+    this.hb = this.rc = this.hs = null;
     this.ready = false;
+    this.sessionReady = false;
     const error = new Error(`gateway closed permanently: ${code} (${reason})`);
     this.log('error', error.message);
     this.reject?.(error);
@@ -239,6 +260,8 @@ export class DiscordClient {
   }
   private fail(error: Error): void {
     this.stopped = true;
+    this.hs?.(); this.hs = null;
+    this.sessionReady = false;
     this.log('error', error.message);
     this.reject?.(error);
     this.reject = this.resolve = this.pending = null;
