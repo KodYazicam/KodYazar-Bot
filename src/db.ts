@@ -36,17 +36,18 @@ const MIGRATIONS: readonly Migration[] = [
   },
 ];
 
-const GUILD_ID = /^\d{17,20}$/;
-const SETTING_KEY = /^[a-z][a-z0-9_]{0,63}$/;
+/** Guild ids and setting keys accepted by the store and the portable document. */
+export const GUILD_ID_PATTERN = /^\d{17,20}$/;
+export const SETTING_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/;
 
 function assertGuildId(guildId: unknown): asserts guildId is string {
-  if (typeof guildId !== 'string' || !GUILD_ID.test(guildId)) {
+  if (typeof guildId !== 'string' || !GUILD_ID_PATTERN.test(guildId)) {
     throw new Error('guild id must be a Discord snowflake (17-20 digits)');
   }
 }
 
 function assertSettingKey(key: unknown): asserts key is string {
-  if (typeof key !== 'string' || !SETTING_KEY.test(key)) {
+  if (typeof key !== 'string' || !SETTING_KEY_PATTERN.test(key)) {
     throw new Error('setting key must match ^[a-z][a-z0-9_]{0,63}$');
   }
 }
@@ -101,6 +102,12 @@ export interface GuildSettingsStore {
   get(guildId: string, key: string): string | null;
   /** Inserts or overwrites one setting. */
   set(guildId: string, key: string, value: string): void;
+  /**
+   * Inserts or overwrites many settings for one guild in a single transaction.
+   * Every entry is validated before the transaction starts, so a bad entry
+   * leaves the existing rows untouched. Keys absent from `values` are kept.
+   */
+  setMany(guildId: string, values: Record<string, string>): void;
   /** Returns true when a row was deleted. */
   remove(guildId: string, key: string): boolean;
   /** Returns every setting for one guild, keyed by name. */
@@ -141,6 +148,36 @@ export function openGuildSettingsStore(
       assertSettingKey(key);
       assertSettingValue(value);
       upsert.run(guildId, key, value, now());
+    },
+    setMany(guildId, values) {
+      assertGuildId(guildId);
+      // Validate every entry before opening the transaction so one bad value
+      // cannot leave a partially applied batch. SQLite's TEXT path stops at a
+      // NUL, so reject it here even when a direct caller bypasses the document
+      // parser.
+      const entries = Object.entries(values);
+      for (const [key, value] of entries) {
+        assertSettingKey(key);
+        assertSettingValue(value);
+        if (value.includes('\u0000')) throw new Error('setting value must not contain NUL');
+      }
+      if (entries.length === 0) return;
+
+      // One timestamp for the batch keeps the write deterministic and makes it
+      // obvious that these rows changed together.
+      const updatedAt = now();
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        for (const [key, value] of entries) upsert.run(guildId, key, value, updatedAt);
+        db.exec('COMMIT');
+      } catch (error) {
+        try {
+          db.exec('ROLLBACK');
+        } catch {
+          // The transaction may already be gone after a failed COMMIT.
+        }
+        throw error;
+      }
     },
     remove(guildId, key) {
       assertGuildId(guildId);

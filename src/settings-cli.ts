@@ -1,12 +1,13 @@
-import { chmodSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
 import { type GuildSettingsStore, openGuildSettingsStore } from './db.js';
-import { exportSettings, serialiseSettings } from './settings-file.js';
+import { exportSettings, importSettings, parseSettingsDocument, serialiseSettings } from './settings-file.js';
 
 export const SETTINGS_USAGE = `usage:
-  node dist/src/settings-cli.js export [--database <path>] [--out <file>] [--guild <id> ...]`;
+  node dist/src/settings-cli.js export [--database <path>] [--out <file>] [--guild <id> ...]
+  node dist/src/settings-cli.js import [--database <path>] [--in <file>] [--dry-run]`;
 
 export interface ExportArgs {
   database?: string;
@@ -36,6 +37,31 @@ export function parseExportArgs(argv: readonly string[]): ExportArgs {
       args.out = valueAfter(rest, ++index, option);
     } else if (option === '--guild') {
       args.guilds.push(valueAfter(rest, ++index, option));
+    } else {
+      throw new Error(`unknown option: ${option}`);
+    }
+  }
+  return args;
+}
+
+export interface ImportArgs {
+  database?: string;
+  /** Document file; stdin when omitted. */
+  input?: string;
+  dryRun: boolean;
+}
+
+/** Parses the import command line; validation happens before any database work. */
+export function parseImportArgs(argv: readonly string[]): ImportArgs {
+  const args: ImportArgs = { dryRun: false };
+  for (let index = 0; index < argv.length; index += 1) {
+    const option = argv[index] as string;
+    if (option === '--database') {
+      args.database = valueAfter(argv, ++index, option);
+    } else if (option === '--in') {
+      args.input = valueAfter(argv, ++index, option);
+    } else if (option === '--dry-run') {
+      args.dryRun = true;
     } else {
       throw new Error(`unknown option: ${option}`);
     }
@@ -76,8 +102,8 @@ function writeOutput(path: string | undefined, text: string): void {
   chmodSync(path, 0o600);
 }
 
-function openStore(database: string): GuildSettingsStore {
-  const db = new DatabaseSync(database, { readOnly: true });
+function openStore(database: string, readOnly: boolean): GuildSettingsStore {
+  const db = new DatabaseSync(database, { readOnly });
   try {
     db.exec('PRAGMA busy_timeout = 5000');
     return openGuildSettingsStore(db);
@@ -87,12 +113,58 @@ function openStore(database: string): GuildSettingsStore {
   }
 }
 
+function readInput(path: string | undefined): string {
+  if (path !== undefined) return readFileSync(path, 'utf8');
+  if (process.stdin.isTTY === true) throw new Error('--in is required when stdin is a terminal');
+  // fd 0 keeps the document out of argv and shell history.
+  return readFileSync(0, 'utf8');
+}
+
+function runImport(argv: readonly string[]): number {
+  let args: ImportArgs;
+  try {
+    args = parseImportArgs(argv);
+  } catch (error) {
+    process.stderr.write(`settings failed: ${error instanceof Error ? error.message : 'invalid arguments'}\n`);
+    process.stderr.write(`${SETTINGS_USAGE}\n`);
+    return 1;
+  }
+
+  let store: GuildSettingsStore | undefined;
+  try {
+    const document = parseSettingsDocument(readInput(args.input));
+    const database = databasePath(args.database);
+    assertDatabaseFile(database);
+    // A dry run opens read-only, so an accidental write fails instead of
+    // touching the operator's database.
+    store = openStore(database, args.dryRun);
+    const summary = importSettings(store, document, { dryRun: args.dryRun });
+    process.stdout.write(`${JSON.stringify({
+      status: 'ok',
+      guilds: summary.guilds,
+      settings: summary.settings,
+      dry_run: summary.dryRun,
+    })}\n`);
+    return 0;
+  } catch (error) {
+    process.stderr.write(`settings failed: ${error instanceof Error ? error.message : 'unknown error'}\n`);
+    return 1;
+  } finally {
+    try {
+      store?.close();
+    } catch {
+      // The import result is already on stdout; a close error must not hide it.
+    }
+  }
+}
+
 /** Runs one export and returns its exit code. Separated from the direct-run guard. */
 export function runSettingsCli(argv: readonly string[]): number {
   if (argv.length === 0) {
     process.stderr.write(`${SETTINGS_USAGE}\n`);
     return 1;
   }
+  if (argv[0] === 'import') return runImport(argv.slice(1));
 
   let args: ExportArgs;
   try {
@@ -107,7 +179,7 @@ export function runSettingsCli(argv: readonly string[]): number {
   try {
     const database = databasePath(args.database);
     assertDatabaseFile(database);
-    store = openStore(database);
+    store = openStore(database, true);
     const document = exportSettings(store, { guildIds: args.guilds.length > 0 ? args.guilds : undefined });
     writeOutput(args.out, serialiseSettings(document));
     if (args.out !== undefined) {

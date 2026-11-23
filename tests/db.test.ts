@@ -78,6 +78,66 @@ test('stores, lists, overwrites, and removes settings per guild', () => {
   }
 });
 
+test('setMany upserts one guild in a transaction and leaves other keys and guilds alone', () => {
+  const db = openDatabase(':memory:');
+  let clock = 1_000;
+  const store = openGuildSettingsStore(db, {
+    now: () => {
+      const value = clock;
+      clock += 1;
+      return value;
+    },
+  });
+  try {
+    store.set(GUILD_A, 'prefix', '!');
+    store.set(GUILD_A, 'welcome_channel', '111111111111111111');
+    store.set(GUILD_B, 'prefix', '?');
+
+    store.setMany(GUILD_A, { prefix: '$', log_channel: '222222222222222222' });
+
+    assert.deepEqual(store.list(GUILD_A), {
+      log_channel: '222222222222222222',
+      prefix: '$',
+      welcome_channel: '111111111111111111',
+    });
+    assert.deepEqual(store.list(GUILD_B), { prefix: '?' });
+    const stamps = db.prepare(
+      'SELECT DISTINCT updated_at FROM guild_settings WHERE guild_id = ? AND key IN (?, ?)',
+    ).all(GUILD_A, 'prefix', 'log_channel') as Array<{ updated_at: number }>;
+    assert.equal(stamps.length, 1, 'a batch must share one updated_at timestamp');
+
+    store.setMany(GUILD_A, {});
+    assert.equal(store.get(GUILD_A, 'prefix'), '$');
+  } finally {
+    store.close();
+  }
+});
+
+test('setMany rejects the whole batch before writing', () => {
+  const db = openDatabase(':memory:');
+  const store = openGuildSettingsStore(db);
+  try {
+    store.set(GUILD_A, 'prefix', 'keep');
+    const unchanged = () => assert.deepEqual(store.list(GUILD_A), { prefix: 'keep' });
+
+    assert.throws(() => store.setMany(GUILD_A, { prefix: 'changed', Bad: 'x' }), /setting key/i);
+    unchanged();
+    assert.throws(
+      () => store.setMany(GUILD_A, { prefix: 'changed', log_channel: 'nul\u0000value' }),
+      /NUL/,
+    );
+    unchanged();
+    assert.throws(
+      () => store.setMany(GUILD_A, { prefix: 'changed', log_channel: 'x'.repeat(64 * 1024 + 1) }),
+      /65536/,
+    );
+    unchanged();
+    assert.throws(() => store.setMany('not-a-guild', {}), /guild id/i);
+  } finally {
+    store.close();
+  }
+});
+
 test('persists settings across close and reopen', () => {
   withTempDir((dir) => {
     const file = join(dir, 'persist.sqlite');
