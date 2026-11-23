@@ -121,6 +121,21 @@ test('rejects invalid guild ids, keys, and values without echoing them', () => {
   }
 });
 
+test('lists the guilds that have settings, sorted by id', () => {
+  const db = openDatabase(':memory:');
+  const store = openGuildSettingsStore(db);
+  try {
+    assert.deepEqual(store.guildIds(), []);
+    store.set(GUILD_B, 'prefix', '?');
+    store.set(GUILD_A, 'prefix', '!');
+    assert.deepEqual(store.guildIds(), [GUILD_A, GUILD_B]);
+    store.remove(GUILD_A, 'prefix');
+    assert.deepEqual(store.guildIds(), [GUILD_B]);
+  } finally {
+    store.close();
+  }
+});
+
 test('SCHEMA_VERSION matches the highest applied migration', () => {
   const db = openDatabase(':memory:');
   try {

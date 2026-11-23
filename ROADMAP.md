@@ -16,9 +16,9 @@ real problems. Open an issue before starting a large change.
   announcements, backups, auto/reaction roles, temp voice, moderation, staff
   tracking, and logging.
 - TR/EN strings from the first command, with English fallback.
-- SQLite migrations and per-guild settings (storage spine, #18), plus an
-  export/import path for per-guild configuration and a documented backup format
-  that never stores tokens.
+- SQLite migrations and per-guild settings (storage spine, #18), with a portable
+  export path for per-guild configuration, a documented backup format that never
+  stores tokens, and an import path as the next step (#69).
 
 ## Later
 
