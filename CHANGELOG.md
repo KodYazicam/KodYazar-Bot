@@ -8,6 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Portable settings export (#68): `src/settings-file.ts` defines a versioned
+  JSON document (`format: "kodyazar-bot/settings"`, `version: 1`) and
+  `src/settings-cli.ts` exposes `npm run settings:export` with `--database`,
+  `--out`, and repeatable `--guild` options. Exports are deterministic, refuse
+  to overwrite an existing file, and use mode `0600`; `GuildSettingsStore` gains
+  `guildIds()` so the command can enumerate guilds without a schema change.
+  Import is the next slice (#69).
 - SQLite storage spine (#18): `src/db.ts` opens `DATA_DIR/kodyazar.sqlite`,
   applies forward-only migrations recorded in `schema_migrations` (v1 adds
   `guild_settings`), runs in WAL mode with a 5s busy timeout, and exposes a

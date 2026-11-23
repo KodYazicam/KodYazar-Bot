@@ -262,6 +262,28 @@ a consistent snapshot while it runs with the SQLite backup API or
 `VACUUM INTO '<backup-file>'`. Never copy a live database with `cp` and never
 store a Discord token in it.
 
+### Portable settings export
+
+A snapshot is the right tool for a full restore. To review or move the per-guild
+settings, use the portable JSON export instead. It needs no `TOKEN`; it reads
+`DATA_DIR/kodyazar.sqlite` unless `--database` is given, and requires
+`npm run build` first.
+
+```bash
+# Every guild, written to a new private file (mode 0600, never overwritten)
+npm run settings:export -- --out ./backups/settings.json
+
+# One or more guilds, or JSON on stdout when --out is omitted
+npm run settings:export -- --guild 123456789012345678 --out ./backups/one-guild.json
+```
+
+The document records `format`, `version`, `exported_at`, and a `guilds` object
+sorted by guild id. An export is read-only and refuses to overwrite an existing
+file. Treat it as sensitive configuration because it contains guild, channel,
+role, and user-provided values; keep it out of git and do not attach it to
+issues. A merge-only import command is the next step (#69); until then, use a
+snapshot for restoring the whole database.
+
 For the Docker deployment, `DATA_DIR` is `/app/data` on the `bot-data` volume;
 the compose file and image already point there, so the volume is the backup
 unit. Restore by placing the snapshot back before starting the older or newer

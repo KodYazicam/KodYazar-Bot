@@ -105,6 +105,8 @@ export interface GuildSettingsStore {
   remove(guildId: string, key: string): boolean;
   /** Returns every setting for one guild, keyed by name. */
   list(guildId: string): Record<string, string>;
+  /** Returns every guild that has at least one setting, sorted by id. */
+  guildIds(): string[];
   close(): void;
 }
 
@@ -119,6 +121,7 @@ export function openGuildSettingsStore(
 ): GuildSettingsStore {
   const selectOne = db.prepare('SELECT value FROM guild_settings WHERE guild_id = ? AND key = ?');
   const selectAll = db.prepare('SELECT key, value FROM guild_settings WHERE guild_id = ? ORDER BY key');
+  const selectGuilds = db.prepare('SELECT DISTINCT guild_id FROM guild_settings ORDER BY guild_id');
   const upsert = db.prepare(`
     INSERT INTO guild_settings (guild_id, key, value, updated_at)
     VALUES (?, ?, ?, ?)
@@ -151,6 +154,10 @@ export function openGuildSettingsStore(
       const settings: Record<string, string> = {};
       for (const row of rows) settings[row.key] = row.value;
       return settings;
+    },
+    guildIds() {
+      const rows = selectGuilds.all() as Array<{ guild_id: string }>;
+      return rows.map((row) => row.guild_id);
     },
     close() {
       db.close();
