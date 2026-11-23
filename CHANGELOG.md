@@ -48,6 +48,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Gateway handshake: a socket that opens but never dispatches `READY` used to
+  leave `start()` pending with no timer or reconnect, so the bot stayed offline
+  while `/healthz` kept reporting healthy. Each connection now gets a 15 second
+  `READY` timeout that logs `gateway handshake timed out`, closes with code
+  `4000`, and reconnects through the existing capped backoff (#63).
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected

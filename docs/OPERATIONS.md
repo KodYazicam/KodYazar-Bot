@@ -234,6 +234,7 @@ committed `.env`.
 | `/ping` missing in Discord | Global commands can take up to an hour. For instant rollout set `GUILD_ID` and restart; also confirm the `applications.commands` scope. |
 | `WebSocket is unavailable` | The runtime is older than Node 22, or the image was built from an unsupported base. |
 | Repeated `gateway closed; reconnecting` | Network/DNS blocked or a Discord incident. The client retries with capped backoff and gives up during initial connect after 5 attempts. Terminal codes are different: see the next row. |
+| `gateway handshake timed out` | The socket opened but did not reach `READY` within 15 seconds. The client closes it with code `4000` and retries with backoff; repeated lines mean the path to Discord is filtering or black-holing the handshake. |
 | `gateway closed permanently: <code>` | A close code Discord will never accept on retry (`4004` auth, `4010`-`4012` shard/API version, `4013`/`4014` intents). The client stops instead of reconnecting and exits non-zero. Check `TOKEN`, the enabled intents, and the API version. |
 | `storage failed to open` | `DATA_DIR` is not writable or the database is corrupt. Check ownership of the volume; the process exits 1 rather than running without settings. |
 | `shutdown timed out` | Teardown exceeded 5 seconds. Check the last log line before exit; tune the service timeout only after finding the slow step. |
