@@ -43,7 +43,7 @@ async function ready(h: Harness): Promise<FakeSocket> {
   await started;
   return socket;
 }
-const interaction = (name: string) => ({ op: 0, s: 2, t: 'INTERACTION_CREATE', d: { id: 'interaction-1', token: 'interaction-token', type: 2, data: { name } } });
+const interaction = (name: string, extra: Record<string, unknown> = {}) => ({ op: 0, s: 2, t: 'INTERACTION_CREATE', d: { id: 'interaction-1', token: 'interaction-token', type: 2, data: { name }, ...extra } });
 test('identifies after HELLO and resolves start() on READY', async () => {
   const h = harness();
   const started = h.client.start();
@@ -69,6 +69,24 @@ test('answers ping with heartbeat latency and process uptime', async () => {
   assert.equal(call.url, 'https://discord.com/api/v10/interactions/interaction-1/interaction-token/callback');
   assert.equal(call.init.method, 'POST');
   assert.deepEqual(JSON.parse(String(call.init.body)), { type: 4, data: { content: 'Pong · 25ms · uptime 42s' } });
+  h.client.stop();
+});
+test('answers ping in the interaction locale and falls back to English', async () => {
+  const h = harness();
+  const socket = await ready(h);
+  socket.dispatch(interaction('ping', { locale: 'tr' }));
+  await tick();
+  socket.dispatch(interaction('ping', { guild_locale: 'tr-TR' }));
+  await tick();
+  socket.dispatch(interaction('ping', { locale: 'de-DE', guild_locale: 'de' }));
+  await tick();
+  const contents = h.fetchCalls.map((call) =>
+    (JSON.parse(String(call.init.body)) as { data: { content: string } }).data.content);
+  assert.deepEqual(contents, [
+    'Pong · 0ms · çalışma süresi 42s',
+    'Pong · 0ms · çalışma süresi 42s',
+    'Pong · 0ms · uptime 42s',
+  ]);
   h.client.stop();
 });
 test('ignores interactions for commands it does not own', async () => {

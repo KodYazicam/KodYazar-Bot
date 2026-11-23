@@ -15,7 +15,9 @@ real problems. Open an issue before starting a large change.
 - One issue per feature area, each with tests and documented permissions:
   announcements, backups, auto/reaction roles, temp voice, moderation, staff
   tracking, and logging.
-- TR/EN strings from the first command, with English fallback.
+- TR/EN strings from the first command, with English fallback (`/ping` in
+  [#48](https://github.com/KodYazicam/KodYazar-Bot/issues/48)); later commands
+  extend the same catalog.
 - SQLite migrations and per-guild settings (storage spine, #18), plus an
   export/import path for per-guild configuration and a documented backup format
   that never stores tokens.

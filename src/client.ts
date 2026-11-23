@@ -1,3 +1,5 @@
+import { type Locale, resolveLocale } from './i18n.js';
+
 /** The single seam between this bot and a Discord library: replace this file
  * with `sparkcord` once its package is installable, without touching commands. */
 export const GATEWAY_URL = 'wss://gateway.discord.gg/?v=10&encoding=json';
@@ -26,7 +28,7 @@ export interface GatewaySocket {
   close(code?: number, reason?: string): void;
   addEventListener(type: string, listener: (event: GatewayFrame) => void): void;
 }
-export interface CommandContext { latencyMs: number; uptimeSeconds: number; reply(content: string): void }
+export interface CommandContext { latencyMs: number; uptimeSeconds: number; locale: Locale; reply(content: string): void }
 export interface Command { name: string; description: string; run(context: CommandContext): void | Promise<void> }
 export interface DiscordClientOptions {
   token: string; clientId: string; guildId?: string; commands: readonly Command[];
@@ -41,7 +43,7 @@ export interface DiscordClientOptions {
   onFatal?: (event: GatewayFatalEvent) => void;
 }
 interface Payload { op?: number; s?: number | null; t?: string; d?: unknown }
-interface Interaction { id?: string; token?: string; type?: number; data?: { name?: string } }
+interface Interaction { id?: string; token?: string; type?: number; data?: { name?: string }; locale?: string; guild_locale?: string }
 function defaultConnect(url: string): GatewaySocket {
   const Ctor = (globalThis as { WebSocket?: new (url: string) => GatewaySocket }).WebSocket;
   if (!Ctor) throw new Error('WebSocket is unavailable; Node.js 22 or newer is required');
@@ -189,6 +191,8 @@ export class DiscordClient {
       await command.run({
         latencyMs: this.latencyMs,
         uptimeSeconds: this.options.uptime?.() ?? process.uptime(),
+        // The user's locale wins; the guild locale is the fallback before English.
+        locale: resolveLocale(interaction.locale, interaction.guild_locale),
         reply: (value) => (content = value),
       });
     } catch (error) {

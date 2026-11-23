@@ -15,7 +15,10 @@ module) and `git` (the pinned `sparkcord` dependency is installed from a
 commit). Run `npm ci`, copy `.env.example` to `.env`, fill `TOKEN`
 and `CLIENT_ID`, then `npm run build && npm start`. On startup the bot registers
 `/ping`, opens the gateway with the `GUILDS` intent only (no privileged intents),
-and replies with heartbeat latency and process uptime; set `GUILD_ID` while
+and replies with heartbeat latency and process uptime. The reply uses the
+invoking user's Discord locale when it is Turkish (`tr`) or English (`en`),
+falls back to the guild locale, and finally to English; localization adds no
+dependency and makes no network call. Set `GUILD_ID` while
 developing so the command appears immediately. The health server listens on
 `PORT` (default 3000 when unset or empty; `0` picks an ephemeral port) and
 `/healthz` returns

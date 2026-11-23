@@ -8,6 +8,11 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Localized `/ping` (#48): `src/i18n.ts` resolves the invoking user's Discord
+  locale (`tr` or `en`) and then the guild locale, falling back to English.
+  Only the uptime label changes; latency and uptime formatting are unchanged,
+  and localization adds no dependency or network call. The command still
+  registers one English name and description.
 - SQLite storage spine (#18): `src/db.ts` opens `DATA_DIR/kodyazar.sqlite`,
   applies forward-only migrations recorded in `schema_migrations` (v1 adds
   `guild_settings`), runs in WAL mode with a 5s busy timeout, and exposes a
