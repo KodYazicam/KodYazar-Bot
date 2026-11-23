@@ -48,6 +48,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Version reporting: `GET /healthz` and the `kodyazar-bot ready` line read
+  `version` from the shipped `package.json` instead of relying on
+  `npm_package_version`, which is unset in the Docker image and in the
+  documented systemd unit. A version bump no longer leaves monitoring on the
+  previous release; a missing or malformed manifest reports `unknown` instead of
+  failing to boot.
 - Configuration: `PORT` is parsed as a decimal integer. An empty value now
   falls back to the documented default 3000 instead of silently selecting an
   ephemeral port, and hex/exponent forms such as `0x10` or `1e3` are rejected
